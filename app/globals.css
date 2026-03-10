@@ -3,21 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F7F4EE;
+  --foreground: #2A2520;
+  --cream: #F7F4EE;
+  --warm: #EDE8DF;
+  --stone: #C9BFA8;
+  --olive: #6B7A5A;
+  --dark: #2A2520;
+  --terracotta: #B5612A;
+  --muted: #8A8070;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream) !important;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+main {
+  min-height: 100vh;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-modal-in {
+  animation: modalIn 0.2s ease-out forwards;
 }
 
 @layer utilities {
