@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcryptjs from "bcryptjs";
 const { hash } = bcryptjs;
