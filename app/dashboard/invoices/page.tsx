@@ -82,9 +82,10 @@ export default function InvoicesPage() {
     if (res.ok) {
       const d = await res.json();
       setInvoices(d.invoices ?? []);
-      setStats(d.stats ?? stats);
+      setStats(d.stats ?? { totalInvoiced: 0, totalPaid: 0, totalPending: 0, totalOverdue: 0 });
     }
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus, from, to, search]);
 
   useEffect(() => { fetchInvoices(); }, [fetchInvoices]);

@@ -52,7 +52,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   const { error, status, target } = await assertAccess(session, id);
   if (error) return NextResponse.json({ error }, { status });
 
-  const { createdById: _, ...user } = target!;
+  const { createdById: _cId, ...user } = target!;
   return NextResponse.json(user);
 }
 
@@ -158,7 +158,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     );
   }
 
-  const { createdById: _, ...result } = updated;
+  const { createdById: _cId2, ...result } = updated;
   return NextResponse.json(result);
 }
 

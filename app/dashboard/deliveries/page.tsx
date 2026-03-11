@@ -6,7 +6,6 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Camera,
   AlertCircle,
   CheckCircle2,
   X,
