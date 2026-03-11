@@ -1,21 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, onSnapshot, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      query(collection(db, "orders"), orderBy("deliveryDate", "desc")),
-      (snap) => {
-        setOrders(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-      }
-    );
+    let unsub = () => {};
+    (async () => {
+      const firestore = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase/client");
+      unsub = firestore.onSnapshot(
+        firestore.query(
+          firestore.collection(db, "orders"),
+          firestore.orderBy("deliveryDate", "desc")
+        ),
+        (snap) => {
+          setOrders(
+            snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          );
+        }
+      );
+    })();
     return () => unsub();
   }, []);
 

@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/Button";
 import { Loader2, Pencil, UserPlus, X } from "lucide-react";
 
@@ -37,18 +35,32 @@ export default function TeamPage() {
   });
 
   useEffect(() => {
-    const unsubDrivers = onSnapshot(
-      query(collection(db, "users"), where("role", "==", "driver")),
-      (snap) => {
-        setDrivers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TeamMember, "id">) })));
-      }
-    );
-    const unsubSales = onSnapshot(
-      query(collection(db, "users"), where("role", "==", "sales")),
-      (snap) => {
-        setSales(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TeamMember, "id">) })));
-      }
-    );
+    let unsubDrivers = () => {};
+    let unsubSales = () => {};
+    (async () => {
+      const firestore = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase/client");
+
+      unsubDrivers = firestore.onSnapshot(
+        firestore.query(
+          firestore.collection(db, "users"),
+          firestore.where("role", "==", "driver")
+        ),
+        (snap) => {
+          setDrivers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TeamMember, "id">) })));
+        }
+      );
+      unsubSales = firestore.onSnapshot(
+        firestore.query(
+          firestore.collection(db, "users"),
+          firestore.where("role", "==", "sales")
+        ),
+        (snap) => {
+          setSales(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TeamMember, "id">) })));
+        }
+      );
+    })();
+
     return () => {
       unsubDrivers();
       unsubSales();

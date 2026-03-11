@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Array<Record<string, unknown>>>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, "invoices"),
-      (snap) => {
-        setInvoices(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-        );
-      }
-    );
+    let unsub = () => {};
+    (async () => {
+      const firestore = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase/client");
+      unsub = firestore.onSnapshot(
+        firestore.collection(db, "invoices"),
+        (snap) => {
+          setInvoices(
+            snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+          );
+        }
+      );
+    })();
     return () => unsub();
   }, []);
 

@@ -2,15 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  collection,
-  query,
-  onSnapshot,
-  orderBy,
-  getDocs,
-  where,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 
 const statusColors: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -36,38 +27,47 @@ export default function QuotesListPage() {
   const [quotes, setQuotes] = useState<QuoteDoc[]>([]);
 
   useEffect(() => {
-    const q =
-      filter === "all"
-        ? query(collection(db, "quotes"), orderBy("createdAt", "desc"))
-        : query(
-            collection(db, "quotes"),
-            where("status", "==", filter),
-            orderBy("createdAt", "desc")
-          );
+    let unsub = () => {};
+    (async () => {
+      const firestore = await import("firebase/firestore");
+      const { db } = await import("@/lib/firebase/client");
 
-    const unsub = onSnapshot(q, async (snap) => {
-      const list: QuoteDoc[] = [];
-      for (const doc of snap.docs) {
-        const itemsSnap = await getDocs(
-          collection(db, "quotes", doc.id, "items")
-        );
-        const itemCount = itemsSnap.docs.reduce(
-          (s, d) => s + (d.data().quantity ?? 0),
-          0
-        );
-        const data = doc.data();
-        list.push({
-          id: doc.id,
-          clientName: data.clientName ?? "—",
-          clientEmail: data.clientEmail ?? "",
-          eventDate: data.eventDate ?? null,
-          createdAt: data.createdAt ?? null,
-          status: data.status ?? "pending",
-          itemCount,
-        });
-      }
-      setQuotes(list);
-    });
+      const q =
+        filter === "all"
+          ? firestore.query(
+              firestore.collection(db, "quotes"),
+              firestore.orderBy("createdAt", "desc")
+            )
+          : firestore.query(
+              firestore.collection(db, "quotes"),
+              firestore.where("status", "==", filter),
+              firestore.orderBy("createdAt", "desc")
+            );
+
+      unsub = firestore.onSnapshot(q, async (snap) => {
+        const list: QuoteDoc[] = [];
+        for (const doc of snap.docs) {
+          const itemsSnap = await firestore.getDocs(
+            firestore.collection(db, "quotes", doc.id, "items")
+          );
+          const itemCount = itemsSnap.docs.reduce(
+            (s, d) => s + (d.data().quantity ?? 0),
+            0
+          );
+          const data = doc.data();
+          list.push({
+            id: doc.id,
+            clientName: data.clientName ?? "—",
+            clientEmail: data.clientEmail ?? "",
+            eventDate: data.eventDate ?? null,
+            createdAt: data.createdAt ?? null,
+            status: data.status ?? "pending",
+            itemCount,
+          });
+        }
+        setQuotes(list);
+      });
+    })();
 
     return () => unsub();
   }, [filter]);
