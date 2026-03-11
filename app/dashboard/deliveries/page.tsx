@@ -45,7 +45,7 @@ type Report = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING_REVIEW: "Pendiente", APPROVED: "Aprobado", REJECTED: "Rechazado", ESCALATED: "Escalado",
+  PENDING_REVIEW: "Pending", APPROVED: "Approved", REJECTED: "Rejected", ESCALATED: "Escalated",
 };
 const STATUS_COLORS: Record<string, string> = {
   PENDING_REVIEW: "bg-amber-100 text-amber-700", APPROVED: "bg-emerald-100 text-emerald-700",
@@ -115,7 +115,7 @@ export default function DeliveriesPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <Truck className="w-6 h-6 text-terracotta" />
-        <h1 className="font-display text-3xl text-dark">Reportes de Entrega</h1>
+        <h1 className="font-display text-3xl text-dark">Delivery Reports</h1>
       </div>
 
       {/* Filters */}
@@ -123,7 +123,7 @@ export default function DeliveriesPage() {
         {filters.map((f) => (
           <button key={f || "all"} onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-xl text-sm transition-all ${filter === f ? "bg-dark text-cream" : "bg-warm text-muted hover:text-dark"}`}>
-            {f ? STATUS_LABELS[f] : "Todos"}
+            {f ? STATUS_LABELS[f] : "All"}
           </button>
         ))}
       </div>
@@ -133,7 +133,7 @@ export default function DeliveriesPage() {
       ) : reports.length === 0 ? (
         <div className="text-center py-20 text-muted">
           <Truck className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>No hay reportes</p>
+          <p>No reports</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -146,14 +146,14 @@ export default function DeliveriesPage() {
                   <div className="flex items-center gap-4 flex-wrap">
                     <span className="font-medium text-dark">{r.order.orderNumber}</span>
                     <span className="text-sm text-muted">{r.driver.name} → {r.receiverName}</span>
-                    <span className="text-xs text-muted">{new Date(r.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted">{new Date(r.createdAt).toLocaleDateString("en-US")}</span>
                     {r.hasIssues ? (
                       <span className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-lg">
-                        <AlertCircle className="w-3 h-3" /> Con incidencias
+                        <AlertCircle className="w-3 h-3" /> With issues
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg">
-                        <CheckCircle2 className="w-3 h-3" /> Sin problemas
+                        <CheckCircle2 className="w-3 h-3" /> No issues
                       </span>
                     )}
                     <span className={`px-2.5 py-0.5 rounded-lg text-xs font-medium ${STATUS_COLORS[r.status]}`}>
@@ -170,11 +170,11 @@ export default function DeliveriesPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-warm/40">
-                            <th className="text-left px-3 py-2 font-medium text-muted">Producto</th>
-                            <th className="text-center px-3 py-2 font-medium text-muted">Esperado</th>
-                            <th className="text-center px-3 py-2 font-medium text-muted">Entregado</th>
-                            <th className="text-left px-3 py-2 font-medium text-muted">Estado</th>
-                            <th className="text-left px-3 py-2 font-medium text-muted">Notas</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted">Product</th>
+                            <th className="text-center px-3 py-2 font-medium text-muted">Expected</th>
+                            <th className="text-center px-3 py-2 font-medium text-muted">Delivered</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted">Status</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted">Notes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -196,7 +196,7 @@ export default function DeliveriesPage() {
 
                     {r.notes && (
                       <div className="p-3 bg-warm rounded-xl text-sm">
-                        <span className="text-xs uppercase text-muted block mb-1">Notas del conductor</span>
+                        <span className="text-xs uppercase text-muted block mb-1">Driver notes</span>
                         {r.notes}
                       </div>
                     )}
@@ -204,7 +204,7 @@ export default function DeliveriesPage() {
                     {/* Photos */}
                     {r.photos.length > 0 && (
                       <div>
-                        <span className="text-xs uppercase text-muted block mb-2">Evidencia fotográfica</span>
+                        <span className="text-xs uppercase text-muted block mb-2">Photo evidence</span>
                         <div className="flex gap-2 flex-wrap">
                           {r.photos.map((p) => (
                             <button key={p.id} onClick={() => setLightbox(p.photoUrl)}
@@ -223,25 +223,25 @@ export default function DeliveriesPage() {
                     {/* Review section */}
                     {r.status === "PENDING_REVIEW" && (
                       <div className="border-t border-stone/10 pt-4 space-y-3">
-                        <span className="text-xs uppercase text-muted block">Revisión</span>
+                        <span className="text-xs uppercase text-muted block">Review</span>
                         <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)}
-                          placeholder="Notas de revisión (opcional)..."
+                          placeholder="Review notes (optional)..."
                           className="w-full px-3 py-2 bg-cream border border-stone/40 rounded-xl text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
 
                         {r.hasIssues && (
                           <label className="flex items-center gap-2 text-sm cursor-pointer">
                             <input type="checkbox" checked={adjustForm} onChange={(e) => setAdjustForm(e.target.checked)} className="rounded" />
-                            Aprobar con ajuste de factura (nota de crédito)
+                            Approve with invoice adjustment (credit note)
                           </label>
                         )}
 
                         {adjustForm && (
                           <div className="bg-white border border-stone/20 rounded-xl p-3 space-y-2">
                             <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)}
-                              placeholder="Razón del ajuste (mín. 10 caracteres)..."
+                              placeholder="Reason for adjustment (min. 10 characters)..."
                               className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                             <input type="number" step="0.01" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)}
-                              placeholder="Monto a descontar (ej: 25.50)"
+                              placeholder="Amount to deduct (e.g.: 25.50)"
                               className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                           </div>
                         )}
@@ -249,15 +249,15 @@ export default function DeliveriesPage() {
                         <div className="flex gap-2 flex-wrap">
                           <button onClick={() => handleReview(r.id, "APPROVED")} disabled={saving}
                             className="bg-olive text-cream px-4 py-2 rounded-xl text-sm hover:bg-olive/90 disabled:opacity-50 transition-all">
-                            {adjustForm ? "Aprobar con ajuste" : "Aprobar"}
+                            {adjustForm ? "Approve with adjustment" : "Approve"}
                           </button>
                           <button onClick={() => handleReview(r.id, "REJECTED")} disabled={saving}
                             className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 transition-all">
-                            Rechazar
+                            Reject
                           </button>
                           <button onClick={() => handleReview(r.id, "ESCALATED")} disabled={saving}
                             className="bg-purple-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-all">
-                            Escalar a Master
+                            Escalate to Master
                           </button>
                         </div>
                       </div>
@@ -265,8 +265,8 @@ export default function DeliveriesPage() {
 
                     {r.reviewedBy && (
                       <div className="p-3 bg-warm rounded-xl text-sm">
-                        <span className="text-xs uppercase text-muted block mb-1">Revisado por {r.reviewedBy.name}</span>
-                        {r.reviewNotes ?? "Sin notas"}
+                        <span className="text-xs uppercase text-muted block mb-1">Reviewed by {r.reviewedBy.name}</span>
+                        {r.reviewNotes ?? "No notes"}
                       </div>
                     )}
                   </div>
@@ -282,7 +282,7 @@ export default function DeliveriesPage() {
         <div className="fixed inset-0 z-50 bg-dark/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-cream"><X className="w-8 h-8" /></button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightbox} alt="Evidencia" className="max-w-full max-h-[90vh] rounded-xl" />
+          <img src={lightbox} alt="Evidence" className="max-w-full max-h-[90vh] rounded-xl" />
         </div>
       )}
     </div>

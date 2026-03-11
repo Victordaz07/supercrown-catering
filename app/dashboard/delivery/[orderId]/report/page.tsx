@@ -36,11 +36,11 @@ type PendingPhoto = {
 };
 
 const ISSUE_OPTIONS = [
-  { value: "", label: "Sin problema" },
-  { value: "MISSING", label: "Faltante" },
-  { value: "DAMAGED", label: "Dañado" },
-  { value: "WRONG_ITEM", label: "Producto equivocado" },
-  { value: "OTHER", label: "Otro" },
+  { value: "", label: "No issue" },
+  { value: "MISSING", label: "Missing" },
+  { value: "DAMAGED", label: "Damaged" },
+  { value: "WRONG_ITEM", label: "Wrong product" },
+  { value: "OTHER", label: "Other" },
 ];
 
 export default function DeliveryReportPage() {
@@ -61,7 +61,7 @@ export default function DeliveryReportPage() {
   useEffect(() => {
     async function loadOrder() {
       const res = await fetch(`/api/orders/${orderId}`);
-      if (!res.ok) { setError("No se pudo cargar la orden"); setLoading(false); return; }
+      if (!res.ok) { setError("Could not load order"); setLoading(false); return; }
       const data = await res.json();
       setOrderInfo({ orderNumber: data.orderNumber, customerName: data.customerName });
       setItems(
@@ -104,7 +104,7 @@ export default function DeliveryReportPage() {
   }
 
   async function handleSubmit() {
-    if (!receiverName.trim()) { setError("El nombre de quien recibe es obligatorio"); return; }
+    if (!receiverName.trim()) { setError("Receiver's name is required"); return; }
     setSubmitting(true);
     setError("");
 
@@ -126,7 +126,7 @@ export default function DeliveryReportPage() {
 
       if (!reportRes.ok) {
         const d = await reportRes.json();
-        setError(d.error ?? "Error al crear reporte");
+        setError(d.error ?? "Error creating report");
         setSubmitting(false);
         return;
       }
@@ -143,7 +143,7 @@ export default function DeliveryReportPage() {
       setSuccess(true);
       setTimeout(() => router.push("/dashboard/delivery"), 2000);
     } catch {
-      setError("Error de conexión");
+      setError("Connection error");
       setSubmitting(false);
     }
   }
@@ -160,8 +160,8 @@ export default function DeliveryReportPage() {
     return (
       <div className="max-w-md mx-auto text-center py-20">
         <CheckCircle className="w-12 h-12 text-olive mx-auto mb-4" />
-        <h2 className="font-display text-2xl text-dark mb-2">Reporte enviado</h2>
-        <p className="text-muted text-sm">Redirigiendo...</p>
+        <h2 className="font-display text-2xl text-dark mb-2">Report submitted</h2>
+        <p className="text-muted text-sm">Redirecting...</p>
       </div>
     );
   }
@@ -169,13 +169,13 @@ export default function DeliveryReportPage() {
   return (
     <div className="max-w-md mx-auto pb-8">
       <button onClick={() => router.back()} className="flex items-center gap-1 text-muted text-sm mb-4 hover:text-terracotta transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Volver
+        <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
       <div className="flex items-center gap-3 mb-6">
         <Truck className="w-6 h-6 text-terracotta" />
         <div>
-          <h1 className="font-display text-2xl text-dark">Reporte de Entrega</h1>
+          <h1 className="font-display text-2xl text-dark">Delivery Report</h1>
           {orderInfo && <p className="text-sm text-muted">{orderInfo.orderNumber} · {orderInfo.customerName}</p>}
         </div>
       </div>
@@ -188,30 +188,30 @@ export default function DeliveryReportPage() {
 
       {/* Receiver */}
       <div className="mb-5">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-1">Nombre de quien recibe</label>
+        <label className="block text-xs uppercase tracking-wider text-muted mb-1">Receiver's name</label>
         <input value={receiverName} onChange={(e) => setReceiverName(e.target.value)}
-          placeholder="Nombre completo"
+          placeholder="Full name"
           className="w-full px-4 py-3 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
       </div>
 
       {/* Items */}
       <div className="mb-5 space-y-3">
-        <span className="block text-xs uppercase tracking-wider text-muted">Productos</span>
+        <span className="block text-xs uppercase tracking-wider text-muted">Products</span>
         {items.map((it, idx) => (
           <div key={it.orderItemId} className={`border rounded-xl p-3 ${it.issue || it.deliveredQty < it.expectedQty ? "border-red-300 bg-red-50/50" : "border-stone/30 bg-white"}`}>
             <div className="flex justify-between items-start mb-2">
               <p className="font-medium text-dark text-sm">{it.name}</p>
-              <span className="text-xs text-muted">Esperado: {it.expectedQty}</span>
+              <span className="text-xs text-muted">Expected: {it.expectedQty}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] uppercase text-muted">Entregado</label>
+                <label className="text-[10px] uppercase text-muted">Delivered</label>
                 <input type="number" min={0} max={it.expectedQty} value={it.deliveredQty}
                   onChange={(e) => updateItem(idx, "deliveredQty", parseInt(e.target.value) || 0)}
                   className="w-full px-3 py-2 border border-stone/40 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
               </div>
               <div>
-                <label className="text-[10px] uppercase text-muted">Estado</label>
+                <label className="text-[10px] uppercase text-muted">Status</label>
                 <select value={it.issue} onChange={(e) => updateItem(idx, "issue", e.target.value)}
                   className="w-full px-3 py-2 border border-stone/40 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                   {ISSUE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -220,7 +220,7 @@ export default function DeliveryReportPage() {
             </div>
             {it.issue && (
               <input value={it.issueNotes} onChange={(e) => updateItem(idx, "issueNotes", e.target.value)}
-                placeholder="Describe el problema..."
+                placeholder="Describe the issue..."
                 className="w-full mt-2 px-3 py-2 border border-stone/40 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
             )}
           </div>
@@ -229,28 +229,28 @@ export default function DeliveryReportPage() {
 
       {/* Notes */}
       <div className="mb-5">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-1">Notas generales</label>
+        <label className="block text-xs uppercase tracking-wider text-muted mb-1">General notes</label>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-          placeholder="Observaciones de la entrega..."
+          placeholder="Delivery observations..."
           className="w-full px-4 py-3 bg-cream border border-stone/40 rounded-xl text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
       </div>
 
       {/* Photos */}
       <div className="mb-6 space-y-3">
-        <span className="block text-xs uppercase tracking-wider text-muted">Evidencia fotográfica</span>
+        <span className="block text-xs uppercase tracking-wider text-muted">Photo evidence</span>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => addPhoto("SIGNED_INVOICE_DRIVER")}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-stone/30 rounded-xl text-xs hover:bg-warm transition-colors">
-            <Camera className="w-3.5 h-3.5" /> Factura Driver
+            <Camera className="w-3.5 h-3.5" /> Driver Invoice
           </button>
           <button onClick={() => addPhoto("SIGNED_INVOICE_CLIENT")}
             className="flex items-center gap-1.5 px-3 py-2 bg-white border border-stone/30 rounded-xl text-xs hover:bg-warm transition-colors">
-            <Camera className="w-3.5 h-3.5" /> Factura Cliente
+            <Camera className="w-3.5 h-3.5" /> Client Invoice
           </button>
           {hasIssues && (
             <button onClick={() => addPhoto("DAMAGED_ITEM")}
               className="flex items-center gap-1.5 px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-red-600 hover:bg-red-50 transition-colors">
-              <Camera className="w-3.5 h-3.5" /> Producto dañado
+              <Camera className="w-3.5 h-3.5" /> Damaged product
             </button>
           )}
         </div>
@@ -273,13 +273,13 @@ export default function DeliveryReportPage() {
       {hasIssues && photos.filter((p) => p.photoType.includes("SIGNED_INVOICE")).length === 0 && (
         <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl text-xs mb-4 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          Hay incidencias. Se recomienda subir al menos una foto de factura firmada.
+          There are issues. It is recommended to upload at least one signed invoice photo.
         </div>
       )}
 
       <button onClick={handleSubmit} disabled={submitting || !receiverName.trim()}
         className="w-full bg-terracotta text-cream py-3.5 rounded-xl font-medium hover:bg-terracotta/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-        {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Upload className="w-4 h-4" /> Enviar reporte</>}
+        {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : <><Upload className="w-4 h-4" /> Submit report</>}
       </button>
     </div>
   );

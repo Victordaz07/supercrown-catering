@@ -75,7 +75,7 @@ function LoginForm() {
     });
 
     if (res?.error) {
-      setError("Email o contrasena invalidos");
+      setError("Invalid email or password");
       setLoading(false);
       return;
     }
@@ -102,7 +102,7 @@ function LoginForm() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || "No se pudo crear la cuenta");
+        throw new Error(data.error || "Could not create account");
       }
 
       const loginRes = await signIn("credentials", {
@@ -112,13 +112,13 @@ function LoginForm() {
       });
 
       if (loginRes?.error) {
-        throw new Error("Cuenta creada, pero no se pudo iniciar sesion");
+        throw new Error("Account created, but could not sign in");
       }
 
       router.push(callbackUrl.startsWith("/dashboard") ? "/" : callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al crear cuenta");
+      setError(err instanceof Error ? err.message : "Error creating account");
     } finally {
       setLoading(false);
     }
@@ -181,7 +181,7 @@ function LoginForm() {
               {tab === "login" ? "Sign in" : "Create account"}
             </h1>
             <p className="text-muted text-sm">
-              Un solo acceso para clientes, delivery, sales y admin.
+              One login for clients, delivery, sales, and admin.
             </p>
           </div>
 
@@ -196,7 +196,7 @@ function LoginForm() {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Entrar
+              Sign in
             </button>
             <button
               type="button"
@@ -207,7 +207,7 @@ function LoginForm() {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Crear cuenta
+              Create account
             </button>
           </div>
 
@@ -221,7 +221,7 @@ function LoginForm() {
                 required
               />
               <FloatingInput
-                label="Contrasena"
+                label="Password"
                 type="password"
                 value={password}
                 onChange={setPassword}
@@ -238,17 +238,17 @@ function LoginForm() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Entrando...
+                    Signing in...
                   </>
                 ) : (
-                  "Entrar"
+                  "Sign in"
                 )}
               </button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
               <FloatingInput
-                label="Nombre"
+                label="Name"
                 value={name}
                 onChange={setName}
                 required
@@ -261,7 +261,7 @@ function LoginForm() {
                 required
               />
               <FloatingInput
-                label="Contrasena"
+                label="Password"
                 type="password"
                 value={password}
                 onChange={setPassword}
@@ -279,15 +279,15 @@ function LoginForm() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Creando...
+                    Creating...
                   </>
                 ) : (
-                  "Crear cuenta"
+                  "Create account"
                 )}
               </button>
               <p className="text-muted text-xs text-center pt-2">
-                La creacion de cuenta es para clientes. Sales, delivery y admin
-                se crean internamente.
+                Account creation is for clients. Sales, delivery, and admin
+                accounts are created internally.
               </p>
             </form>
           )}

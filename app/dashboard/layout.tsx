@@ -32,7 +32,7 @@ export default async function DashboardLayout({
               <span className="ml-2 text-xs bg-stone/20 px-2 py-0.5 rounded-lg">{role}</span>
             </span>
             <Link href="/" className="text-stone hover:text-cream text-sm">
-              ← Sitio
+              ← Site
             </Link>
             <SignOutButton />
           </div>
@@ -41,37 +41,37 @@ export default async function DashboardLayout({
           {isSalesOrAbove && (
             <Link href="/dashboard/orders"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <Package className="w-4 h-4" /> Órdenes
+              <Package className="w-4 h-4" /> Orders
             </Link>
           )}
           {isSalesOrAbove && (
             <Link href="/dashboard/invoices"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <FileText className="w-4 h-4" /> Facturas
+              <FileText className="w-4 h-4" /> Invoices
             </Link>
           )}
           {isSalesOrAbove && (
             <Link href="/dashboard/deliveries"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <ClipboardCheck className="w-4 h-4" /> Entregas
+              <ClipboardCheck className="w-4 h-4" /> Deliveries
             </Link>
           )}
           {isDelivery && (
             <Link href="/dashboard/delivery"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <Truck className="w-4 h-4" /> Mis Entregas
+              <Truck className="w-4 h-4" /> My Deliveries
             </Link>
           )}
           {isMasterOrAdmin && (
             <Link href="/dashboard/users"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <Users className="w-4 h-4" /> Equipo
+              <Users className="w-4 h-4" /> Team
             </Link>
           )}
           {isMasterOrAdmin && (
             <Link href="/dashboard/audit"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
-              <Shield className="w-4 h-4" /> Auditoría
+              <Shield className="w-4 h-4" /> Audit Log
             </Link>
           )}
         </nav>

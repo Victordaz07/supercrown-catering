@@ -39,8 +39,8 @@ type InvoiceRow = {
 type Stats = { totalInvoiced: number; totalPaid: number; totalPending: number; totalOverdue: number };
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Borrador", SENT: "Enviada", DELIVERED: "Entregada", ADJUSTED: "Ajustada",
-  PAID: "Pagada", OVERDUE: "Vencida", VOID: "Anulada", REFUNDED: "Reembolsada",
+  DRAFT: "Draft", SENT: "Sent", DELIVERED: "Delivered", ADJUSTED: "Adjusted",
+  PAID: "Paid", OVERDUE: "Overdue", VOID: "Void", REFUNDED: "Refunded",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -50,7 +50,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Efectivo", CHECK: "Cheque", CARD: "Tarjeta", TRANSFER: "Transferencia", OTHER: "Otro",
+  CASH: "Cash", CHECK: "Check", CARD: "Card", TRANSFER: "Transfer", OTHER: "Other",
 };
 
 function usd(n: number) {
@@ -107,7 +107,7 @@ export default function InvoicesPage() {
   }
 
   async function handleVoid() {
-    if (!selected || !confirm("¿Seguro que deseas anular esta factura?")) return;
+    if (!selected || !confirm("Are you sure you want to void this invoice?")) return;
     await fetch(`/api/invoices/${selected.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -118,17 +118,17 @@ export default function InvoicesPage() {
   }
 
   const statCards = [
-    { label: "Total Facturado", value: stats.totalInvoiced, icon: DollarSign, border: "border-dark" },
-    { label: "Total Cobrado", value: stats.totalPaid, icon: CheckCircle, border: "border-olive" },
-    { label: "Total Pendiente", value: stats.totalPending, icon: Clock, border: "border-amber-500" },
-    { label: "Total Vencido", value: stats.totalOverdue, icon: AlertTriangle, border: "border-terracotta" },
+    { label: "Total Invoiced", value: stats.totalInvoiced, icon: DollarSign, border: "border-dark" },
+    { label: "Total Collected", value: stats.totalPaid, icon: CheckCircle, border: "border-olive" },
+    { label: "Total Pending", value: stats.totalPending, icon: Clock, border: "border-amber-500" },
+    { label: "Total Overdue", value: stats.totalOverdue, icon: AlertTriangle, border: "border-terracotta" },
   ];
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <FileText className="w-6 h-6 text-terracotta" />
-        <h1 className="font-display text-3xl text-dark">Facturas</h1>
+        <h1 className="font-display text-3xl text-dark">Invoices</h1>
       </div>
 
       {/* Stats */}
@@ -148,12 +148,12 @@ export default function InvoicesPage() {
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar cliente o factura..."
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search client or invoice..."
             className="w-full pl-10 pr-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
         </div>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
           className="px-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-          <option value="">Todos los estados</option>
+          <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="px-3 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
@@ -166,7 +166,7 @@ export default function InvoicesPage() {
       ) : invoices.length === 0 ? (
         <div className="text-center py-20 text-muted">
           <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>No hay facturas</p>
+          <p>No invoices found</p>
         </div>
       ) : (
         <div className="bg-white border border-stone/20 rounded-xl overflow-hidden shadow-sm">
@@ -174,12 +174,12 @@ export default function InvoicesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-warm/60 border-b border-stone/20">
-                  <th className="text-left px-4 py-3 font-medium text-muted">Factura</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Cliente</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted hidden md:table-cell">Orden</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Invoice</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Client</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted hidden md:table-cell">Order</th>
                   <th className="text-right px-4 py-3 font-medium text-muted">Total</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Estado</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted hidden lg:table-cell">Vencimiento</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted hidden lg:table-cell">Due Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,7 +200,7 @@ export default function InvoicesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted hidden lg:table-cell">
-                      {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}
+                      {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("en-US") : "—"}
                     </td>
                   </tr>
                 ))}
@@ -228,7 +228,7 @@ export default function InvoicesPage() {
                 <p className="font-medium">{usd(selected.subtotal)}</p>
               </div>
               <div>
-                <span className="text-muted text-xs uppercase">Impuesto ({(selected.taxRate * 100).toFixed(1)}%)</span>
+                <span className="text-muted text-xs uppercase">Tax ({(selected.taxRate * 100).toFixed(1)}%)</span>
                 <p className="font-medium">{usd(selected.taxAmount)}</p>
               </div>
               <div>
@@ -237,7 +237,7 @@ export default function InvoicesPage() {
               </div>
               {selected.adjustmentSum < 0 && (
                 <div>
-                  <span className="text-muted text-xs uppercase">Total ajustado</span>
+                  <span className="text-muted text-xs uppercase">Adjusted total</span>
                   <p className="font-medium text-lg text-terracotta">{usd(selected.adjustedTotal)}</p>
                 </div>
               )}
@@ -245,7 +245,7 @@ export default function InvoicesPage() {
 
             <div className="flex items-center gap-2 mb-4">
               <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${STATUS_COLORS[selected.status]}`}>{STATUS_LABELS[selected.status]}</span>
-              {selected.paidAt && <span className="text-xs text-muted">Pagada {new Date(selected.paidAt).toLocaleDateString()}</span>}
+              {selected.paidAt && <span className="text-xs text-muted">Paid on {new Date(selected.paidAt).toLocaleDateString("en-US")}</span>}
               {selected.paymentMethod && <span className="text-xs text-muted">· {PAYMENT_LABELS[selected.paymentMethod] ?? selected.paymentMethod}</span>}
             </div>
 
@@ -260,7 +260,7 @@ export default function InvoicesPage() {
               {selected.pdfPathClient && (
                 <a href={selected.pdfPathClient} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-stone/30 rounded-xl text-xs hover:bg-warm transition-colors">
-                  <Download className="w-3.5 h-3.5" /> PDF Cliente
+                  <Download className="w-3.5 h-3.5" /> PDF Client
                 </a>
               )}
             </div>
@@ -269,36 +269,36 @@ export default function InvoicesPage() {
             {!["PAID", "VOID", "REFUNDED", "DRAFT"].includes(selected.status) && !payForm && (
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setPayForm(true)} className="flex items-center gap-2 bg-olive text-cream px-4 py-2 rounded-xl text-sm hover:bg-olive/90 transition-all">
-                  <CreditCard className="w-4 h-4" /> Registrar pago
+                  <CreditCard className="w-4 h-4" /> Record payment
                 </button>
                 <button onClick={handleVoid} className="px-4 py-2 border border-red-300 text-red-600 rounded-xl text-sm hover:bg-red-50 transition-all">
-                  Anular
+                  Void
                 </button>
               </div>
             )}
 
             {payForm && (
               <div className="bg-white border border-stone/20 rounded-xl p-4 mb-4 space-y-3">
-                <p className="font-medium text-sm text-dark">Registrar pago</p>
+                <p className="font-medium text-sm text-dark">Record Payment</p>
                 <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
                   className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                   {Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
-                <input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Referencia (opcional)"
+                <input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Reference (optional)"
                   className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
                 <div className="flex gap-2">
                   <button onClick={handlePay} disabled={saving}
                     className="flex-1 bg-olive text-cream py-2 rounded-xl text-sm font-medium hover:bg-olive/90 disabled:opacity-50 flex items-center justify-center gap-2">
-                    {saving && <Loader2 className="w-4 h-4 animate-spin" />} Confirmar pago
+                    {saving && <Loader2 className="w-4 h-4 animate-spin" />} Confirm Payment
                   </button>
-                  <button onClick={() => setPayForm(false)} className="px-4 py-2 border border-stone/30 rounded-xl text-sm">Cancelar</button>
+                  <button onClick={() => setPayForm(false)} className="px-4 py-2 border border-stone/30 rounded-xl text-sm">Cancel</button>
                 </div>
               </div>
             )}
 
             {selected.notes && (
               <div className="p-3 bg-warm rounded-xl text-sm text-dark mb-4">
-                <span className="text-muted text-xs uppercase block mb-1">Notas</span>
+                <span className="text-muted text-xs uppercase block mb-1">Notes</span>
                 {selected.notes}
               </div>
             )}

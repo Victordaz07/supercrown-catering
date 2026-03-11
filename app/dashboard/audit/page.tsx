@@ -17,8 +17,8 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 const ENTITY_LABELS: Record<string, string> = {
-  User: "Usuario", Order: "Orden", Invoice: "Factura", OrderItem: "Artículo",
-  DeliveryReport: "Reporte Entrega", InvoiceAdjustment: "Ajuste",
+  User: "User", Order: "Order", Invoice: "Invoice", OrderItem: "Item",
+  DeliveryReport: "Delivery Report", InvoiceAdjustment: "Adjustment",
 };
 
 const PER_PAGE = 50;
@@ -76,7 +76,7 @@ export default async function AuditPage({
     return `/dashboard/audit?${p.toString()}`;
   }
 
-  const fmt = new Intl.DateTimeFormat("es", {
+  const fmt = new Intl.DateTimeFormat("en-US", {
     dateStyle: "short",
     timeStyle: "medium",
   });
@@ -85,22 +85,22 @@ export default async function AuditPage({
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-2">
         <Shield className="w-6 h-6 text-terracotta" />
-        <h1 className="font-display text-3xl text-dark">Registro de Auditoría</h1>
+        <h1 className="font-display text-3xl text-dark">Audit Log</h1>
       </div>
-      <p className="text-muted text-sm mb-8">Historial inmutable de todos los cambios en el sistema</p>
+      <p className="text-muted text-sm mb-8">Immutable history of all system changes</p>
 
       {/* Filters */}
       <form method="GET" action="/dashboard/audit" className="flex flex-wrap gap-3 mb-6">
         <select name="entity" defaultValue={entity}
           className="px-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-          <option value="">Todas las entidades</option>
+          <option value="">All entities</option>
           {Object.entries(ENTITY_LABELS).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
         <select name="action" defaultValue={action}
           className="px-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
-          <option value="">Todas las acciones</option>
+          <option value="">All actions</option>
           {Object.keys(ACTION_COLORS).map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
@@ -111,11 +111,11 @@ export default async function AuditPage({
           className="px-3 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
         <button type="submit"
           className="px-4 py-2.5 bg-dark text-cream rounded-xl text-sm hover:bg-dark/90 transition-all">
-          Aplicar
+          Apply filters
         </button>
         <Link href="/dashboard/audit"
           className="px-4 py-2.5 bg-warm text-muted rounded-xl text-sm hover:text-dark transition-all">
-          Limpiar
+          Clear
         </Link>
       </form>
 
@@ -123,7 +123,7 @@ export default async function AuditPage({
       {logs.length === 0 ? (
         <div className="text-center py-20 text-muted">
           <SearchX className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>No se encontraron registros</p>
+          <p>No records found</p>
         </div>
       ) : (
         <div className="bg-white border border-stone/20 rounded-xl overflow-hidden shadow-sm mb-6">
@@ -131,12 +131,12 @@ export default async function AuditPage({
             <table className="w-full text-sm" style={{ minWidth: "900px" }}>
               <thead>
                 <tr className="bg-warm/60 border-b border-stone/20">
-                  <th className="text-left px-4 py-3 font-medium text-muted">Fecha/Hora</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Usuario</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Acción</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Entidad</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Campo</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Anterior → Nuevo</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Date/Time</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">User</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Action</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Entity</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Field</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Old → New</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,18 +176,18 @@ export default async function AuditPage({
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted">{total} registros · Página {page} de {totalPages}</span>
+          <span className="text-sm text-muted">{total} record(s) found · Page {page} of {totalPages}</span>
           <div className="flex gap-2">
             {page > 1 && (
               <Link href={buildUrl({ page: String(page - 1) })}
                 className="flex items-center gap-1 px-3 py-2 bg-white border border-stone/30 rounded-xl text-sm hover:bg-warm transition-all">
-                <ChevronLeft className="w-4 h-4" /> Anterior
+                <ChevronLeft className="w-4 h-4" /> Previous
               </Link>
             )}
             {page < totalPages && (
               <Link href={buildUrl({ page: String(page + 1) })}
                 className="flex items-center gap-1 px-3 py-2 bg-white border border-stone/30 rounded-xl text-sm hover:bg-warm transition-all">
-                Siguiente <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-4 h-4" />
               </Link>
             )}
           </div>

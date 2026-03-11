@@ -35,9 +35,9 @@ const ROLE_COLORS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   MASTER: "Master",
   ADMIN: "Admin",
-  SALES: "Ventas",
+  SALES: "Sales",
   DELIVERY: "Driver",
-  CLIENT: "Cliente",
+  CLIENT: "Client",
 };
 
 const CREATABLE: Record<string, string[]> = {
@@ -104,10 +104,10 @@ export default function UsersPage() {
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!res.ok) {
         const d = await res.json();
-        setToast({ msg: d.error ?? "Error", ok: false });
+        setToast({ msg: d.error ?? "An error occurred", ok: false });
         return;
       }
-      setToast({ msg: modal === "create" ? "Usuario creado" : "Usuario actualizado", ok: true });
+      setToast({ msg: modal === "create" ? "User created" : "User updated", ok: true });
       setModal(null);
       fetchUsers();
     } finally {
@@ -125,7 +125,7 @@ export default function UsersPage() {
   }
 
   if (!["MASTER", "ADMIN"].includes(role)) {
-    return <div className="p-8 text-center text-muted">Acceso denegado</div>;
+    return <div className="p-8 text-center text-muted">Access denied</div>;
   }
 
   return (
@@ -139,10 +139,10 @@ export default function UsersPage() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <Users className="w-6 h-6 text-terracotta" />
-          <h1 className="font-display text-3xl text-dark">Equipo</h1>
+          <h1 className="font-display text-3xl text-dark">Team</h1>
         </div>
         <button onClick={openCreate} className="flex items-center gap-2 bg-terracotta text-cream px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-all">
-          <Plus className="w-4 h-4" /> Nuevo miembro
+          <Plus className="w-4 h-4" /> New member
         </button>
       </div>
 
@@ -153,7 +153,7 @@ export default function UsersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o email..."
+            placeholder="Search by name or email..."
             className="w-full pl-10 pr-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30"
           />
         </div>
@@ -162,7 +162,7 @@ export default function UsersPage() {
           onChange={(e) => setFilterRole(e.target.value)}
           className="px-4 py-2.5 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30"
         >
-          <option value="">Todos los roles</option>
+          <option value="">All roles</option>
           {["MASTER", "ADMIN", "SALES", "DELIVERY", "CLIENT"].map((r) => (
             <option key={r} value={r}>{ROLE_LABELS[r]}</option>
           ))}
@@ -174,7 +174,7 @@ export default function UsersPage() {
               onClick={() => setFilterActive(v)}
               className={`px-3 py-1.5 rounded-lg text-sm transition-all ${filterActive === v ? "bg-cream text-dark shadow-sm" : "text-muted hover:text-dark"}`}
             >
-              {v === "all" ? "Todos" : v === "true" ? "Activos" : "Inactivos"}
+              {v === "all" ? "All" : v === "true" ? "Active" : "Inactive"}
             </button>
           ))}
         </div>
@@ -186,7 +186,7 @@ export default function UsersPage() {
       ) : users.length === 0 ? (
         <div className="text-center py-20 text-muted">
           <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p>No se encontraron usuarios</p>
+          <p>No users found</p>
         </div>
       ) : (
         <div className="bg-white border border-stone/20 rounded-xl overflow-hidden shadow-sm">
@@ -194,12 +194,12 @@ export default function UsersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-warm/60 border-b border-stone/20">
-                  <th className="text-left px-4 py-3 font-medium text-muted">Nombre</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-muted hidden md:table-cell">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Rol</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted hidden lg:table-cell">Teléfono</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted">Estado</th>
-                  <th className="text-right px-4 py-3 font-medium text-muted">Acciones</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Role</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted hidden lg:table-cell">Phone</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted">Status</th>
+                  <th className="text-right px-4 py-3 font-medium text-muted">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,15 +226,15 @@ export default function UsersPage() {
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center gap-1.5 text-xs ${u.active ? "text-olive" : "text-red-500"}`}>
                         <span className={`w-2 h-2 rounded-full ${u.active ? "bg-olive" : "bg-red-500"}`} />
-                        {u.active ? "Activo" : "Inactivo"}
+                        {u.active ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(u)} className="p-2 hover:bg-warm rounded-lg transition-colors" title="Editar">
+                        <button onClick={() => openEdit(u)} className="p-2 hover:bg-warm rounded-lg transition-colors" title="Edit">
                           <Pencil className="w-3.5 h-3.5 text-muted" />
                         </button>
-                        <button onClick={() => toggleActive(u)} className="p-2 hover:bg-warm rounded-lg transition-colors" title={u.active ? "Desactivar" : "Activar"}>
+                        <button onClick={() => toggleActive(u)} className="p-2 hover:bg-warm rounded-lg transition-colors" title={u.active ? "Deactivate" : "Reactivate"}>
                           {u.active ? <UserX className="w-3.5 h-3.5 text-red-500" /> : <UserCheck className="w-3.5 h-3.5 text-olive" />}
                         </button>
                       </div>
@@ -253,13 +253,13 @@ export default function UsersPage() {
           <div className="bg-cream rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-2xl text-dark">
-                {modal === "create" ? "Nuevo miembro" : "Editar miembro"}
+                {modal === "create" ? "New member" : "Edit member"}
               </h2>
               <button onClick={() => setModal(null)} className="p-1 hover:bg-warm rounded-lg"><X className="w-5 h-5 text-muted" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Nombre</label>
+                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Full name</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
               </div>
               <div>
@@ -268,12 +268,12 @@ export default function UsersPage() {
               </div>
               <div>
                 <label className="block text-xs uppercase tracking-wider text-muted mb-1">
-                  Contraseña{modal === "edit" && " (dejar vacío para mantener)"}
+                  Password{modal === "edit" && " (leave empty to keep)"}
                 </label>
                 <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Rol</label>
+                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Role</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                   {(modal === "edit" && editing ? Array.from(new Set([editing.role, ...allowed])) : allowed).map((r) => (
                     <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
@@ -281,7 +281,7 @@ export default function UsersPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Teléfono</label>
+                <label className="block text-xs uppercase tracking-wider text-muted mb-1">Phone</label>
                 <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function UsersPage() {
               className="w-full mt-6 bg-terracotta text-cream py-3 rounded-xl font-medium hover:bg-terracotta/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {modal === "create" ? "Crear" : "Guardar cambios"}
+              {modal === "create" ? "Create" : "Save changes"}
             </button>
           </div>
         </div>
