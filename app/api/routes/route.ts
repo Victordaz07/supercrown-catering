@@ -71,7 +71,7 @@ export async function GET(request: Request) {
           ordersByDate.set(day, list);
         }
 
-        for (const [dayIso, orders] of ordersByDate.entries()) {
+        for (const [dayIso, orders] of Array.from(ordersByDate.entries())) {
           const dayDate = new Date(dayIso);
           const route = await prisma.deliveryRoute.upsert({
             where: { driverId_date: { driverId: session.user.id, date: dayDate } },

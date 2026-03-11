@@ -113,7 +113,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         body: fd,
       });
       if (!res.ok) throw new Error("Error uploading");
-      const data = await res.json();
+      await res.json();
       alert("Image uploaded successfully");
       onSuccess();
     } catch {

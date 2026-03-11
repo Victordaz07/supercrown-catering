@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
@@ -10,7 +10,7 @@ type VerifyState =
   | { status: "error"; message: string }
   | { status: "ready"; email: string; role?: string | null };
 
-export default function SetPasswordPage() {
+function SetPasswordContent() {
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
   const [verify, setVerify] = useState<VerifyState>({ status: "loading" });
@@ -182,5 +182,19 @@ export default function SetPasswordPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-cream flex items-center justify-center px-4 py-10">
+          <Loader2 className="w-6 h-6 animate-spin text-terracotta" />
+        </main>
+      }
+    >
+      <SetPasswordContent />
+    </Suspense>
   );
 }
