@@ -52,7 +52,8 @@ export async function GET(request: Request, { params }: RouteContext) {
   const { error, status, target } = await assertAccess(session, id);
   if (error) return NextResponse.json({ error }, { status });
 
-  const { createdById: _cId, ...user } = target!;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { createdById, ...user } = target!;
   return NextResponse.json(user);
 }
 
@@ -158,7 +159,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     );
   }
 
-  const { createdById: _cId2, ...result } = updated;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { createdById, ...result } = updated;
   return NextResponse.json(result);
 }
 
