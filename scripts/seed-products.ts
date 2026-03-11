@@ -1,8 +1,8 @@
 /**
- * Migra productos de menuData.json a Firestore (colección products).
- * Ejecutar: npx tsx scripts/seed-products.ts
+ * Migrates products from menuData.json to Firestore (products collection).
+ * Run: npx tsx scripts/seed-products.ts
  *
- * Requiere: .env.local con FIREBASE_ADMIN_*
+ * Requires: .env.local with FIREBASE_ADMIN_*
  */
 import * as dotenv from "dotenv";
 import * as path from "path";
@@ -51,7 +51,7 @@ async function main() {
     console.log("Migrated:", item.id);
   }
 
-  console.log(`\n✅ ${items.length} productos migrados a Firestore (products)`);
+  console.log(`\n✅ ${items.length} products migrated to Firestore (products)`);
 }
 
 main().catch((err) => {

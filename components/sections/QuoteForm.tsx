@@ -109,7 +109,7 @@ export function QuoteForm() {
       clearCart();
       sessionStorage.removeItem(QUOTE_FORM_STORAGE_KEY);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Algo salió mal. Intenta de nuevo o contáctanos.");
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again or contact us.");
     }
   };
 
@@ -394,7 +394,7 @@ export function QuoteForm() {
                 <>
                   {!isClientLoggedIn && !authLoading && (
                     <p className="text-muted text-sm mb-3">
-                      Inicia sesión o crea tu cuenta para enviar tu cotización.
+                      Sign in or create your account to submit your quote.
                     </p>
                   )}
                   <button
@@ -403,10 +403,10 @@ export function QuoteForm() {
                     className="w-full bg-terracotta text-cream py-4 px-6 font-medium hover:bg-terracotta/90 active:scale-[0.98] transition-all rounded-sm disabled:opacity-70"
                   >
                     {authLoading
-                      ? "Cargando..."
+                      ? "Loading..."
                       : isClientLoggedIn
                         ? "Request My Free Quote →"
-                        : "Login para enviar"}
+                        : "Login to submit"}
                   </button>
                 </>
               )}

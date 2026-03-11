@@ -49,7 +49,7 @@ export default function LoginPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
     });
-    if (!res.ok) throw new Error("No se pudo crear la sesión");
+    if (!res.ok) throw new Error("Could not create session");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -69,7 +69,7 @@ export default function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Email o contraseña inválidos. Intenta de nuevo."
+          : "Invalid email or password"
       );
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ export default function LoginPage() {
 
       if (!roleRes.ok) {
         const data = await roleRes.json().catch(() => ({}));
-        throw new Error(data.error || "No se pudo crear la cuenta");
+        throw new Error(data.error || "Could not create account");
       }
 
       const idToken = await user.getIdToken(true);
@@ -106,7 +106,7 @@ export default function LoginPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes("email-already-in-use")) {
-        setError("Este correo ya existe. Inicia sesión.");
+        setError("This email already exists. Sign in.");
         setTab("login");
       } else {
         setError(message);
@@ -123,7 +123,7 @@ export default function LoginPage() {
           Login
         </h1>
         <p className="text-muted text-sm text-center mb-8">
-          Un solo acceso para clientes, drivers, sales y admins.
+          One login for clients, delivery, sales, and admin.
         </p>
 
         <div className="bg-warm border border-stone/40 rounded-sm p-6">
@@ -140,7 +140,7 @@ export default function LoginPage() {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Entrar
+              Sign in
             </button>
             <button
               type="button"
@@ -154,7 +154,7 @@ export default function LoginPage() {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Crear cuenta
+              Create account
             </button>
           </div>
 
@@ -176,7 +176,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Contraseña
+                  Password
                 </label>
                 <input
                   type="password"
@@ -198,14 +198,14 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-terracotta text-cream py-4 px-6 font-medium hover:bg-terracotta/90 active:scale-[0.98] transition-all rounded-sm disabled:opacity-70"
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Nombre
+                  Name
                 </label>
                 <input
                   type="text"
@@ -233,7 +233,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Contraseña
+                  Password
                 </label>
                 <input
                   type="password"
@@ -256,10 +256,10 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-terracotta text-cream py-4 px-6 font-medium hover:bg-terracotta/90 active:scale-[0.98] transition-all rounded-sm disabled:opacity-70"
               >
-                {loading ? "Creando cuenta..." : "Crear cuenta"}
+                {loading ? "Creating..." : "Create account"}
               </button>
               <p className="text-muted text-xs text-center">
-                Crear cuenta es para clientes. Los usuarios del equipo los crea un admin.
+                Account creation is for clients. Sales, delivery, and admin accounts are created internally.
               </p>
             </form>
           )}
@@ -267,7 +267,7 @@ export default function LoginPage() {
 
         <p className="text-center mt-6">
           <Link href="/" className="text-terracotta hover:underline text-sm">
-            ← Volver al inicio
+            ← Back to site
           </Link>
         </p>
       </div>

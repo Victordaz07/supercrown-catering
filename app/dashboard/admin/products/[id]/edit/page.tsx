@@ -30,12 +30,12 @@ export default function EditProductPage() {
   if (product === null) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted">Producto no encontrado</p>
+        <p className="text-muted">Product not found</p>
         <button
           onClick={() => router.push("/dashboard/admin/products")}
           className="mt-2 text-terracotta hover:underline"
         >
-          Volver a productos
+          Back to products
         </button>
       </div>
     );
@@ -43,7 +43,7 @@ export default function EditProductPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl text-dark">Editar: {product.name}</h1>
+      <h1 className="font-display text-2xl text-dark">Edit: {product.name}</h1>
       <ProductForm
         product={product}
         onSuccess={() => router.push("/dashboard/admin/products")}

@@ -79,7 +79,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         });
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || "Error al actualizar");
+          throw new Error(err.error || "Error updating");
         }
       } else {
         const id = form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
@@ -90,7 +90,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         });
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || "Error al crear");
+          throw new Error(err.error || "Error creating");
         }
       }
       onSuccess();
@@ -112,12 +112,12 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         method: "POST",
         body: fd,
       });
-      if (!res.ok) throw new Error("Error al subir");
+      if (!res.ok) throw new Error("Error uploading");
       const data = await res.json();
-      alert("Imagen subida correctamente");
+      alert("Image uploaded successfully");
       onSuccess();
     } catch {
-      alert("Error al subir la imagen");
+      alert("Error uploading image");
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -127,7 +127,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Nombre *</label>
+        <label className="block text-sm font-medium text-dark mb-1">Name *</label>
         <input
           type="text"
           value={form.name}
@@ -139,7 +139,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-dark mb-1">Categoría</label>
+          <label className="block text-sm font-medium text-dark mb-1">Category</label>
           <select
             value={form.category}
             onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
@@ -151,7 +151,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-dark mb-1">Subcategoría</label>
+          <label className="block text-sm font-medium text-dark mb-1">Subcategory</label>
           <select
             value={form.subcategory}
             onChange={(e) => setForm((p) => ({ ...p, subcategory: e.target.value }))}
@@ -165,7 +165,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Descripción</label>
+        <label className="block text-sm font-medium text-dark mb-1">Description</label>
         <textarea
           value={form.description}
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
@@ -175,18 +175,18 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Descripción corta</label>
+        <label className="block text-sm font-medium text-dark mb-1">Short description</label>
         <input
           type="text"
           value={form.shortDescription}
           onChange={(e) => setForm((p) => ({ ...p, shortDescription: e.target.value }))}
-          placeholder="Para la tarjeta del producto"
+          placeholder="For the product card"
           className="w-full px-4 py-2 border border-stone rounded-lg"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Ingredientes (separados por coma)</label>
+        <label className="block text-sm font-medium text-dark mb-1">Ingredients (comma separated)</label>
         <input
           type="text"
           value={form.ingredients}
@@ -196,7 +196,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Calorías</label>
+        <label className="block text-sm font-medium text-dark mb-1">Calories</label>
         <input
           type="number"
           value={form.calories || ""}
@@ -207,7 +207,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Alérgenos</label>
+        <label className="block text-sm font-medium text-dark mb-1">Allergens</label>
         <div className="flex flex-wrap gap-2">
           {ALLERGENS.map((a) => (
             <button
@@ -243,7 +243,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             onChange={(e) => setForm((p) => ({ ...p, isVegetarian: e.target.checked }))}
             className="rounded border-stone"
           />
-          <span className="text-sm">Vegetariano</span>
+          <span className="text-sm">Vegetarian</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -252,15 +252,15 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             onChange={(e) => setForm((p) => ({ ...p, isAvailable: e.target.checked }))}
             className="rounded border-stone"
           />
-          <span className="text-sm">Disponible</span>
+          <span className="text-sm">Available</span>
         </label>
       </div>
 
       <div className="border-t border-stone/30 pt-6">
-        <h3 className="font-display text-lg text-dark mb-3">Reseña destacada</h3>
+        <h3 className="font-display text-lg text-dark mb-3">Featured review</h3>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm text-muted mb-1">Texto</label>
+            <label className="block text-sm text-muted mb-1">Text</label>
             <textarea
               value={form.reviewText}
               onChange={(e) => setForm((p) => ({ ...p, reviewText: e.target.value }))}
@@ -270,17 +270,17 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-muted mb-1">Autor</label>
+              <label className="block text-sm text-muted mb-1">Author</label>
               <input
                 type="text"
                 value={form.reviewAuthor}
                 onChange={(e) => setForm((p) => ({ ...p, reviewAuthor: e.target.value }))}
-                placeholder="Ej: María G."
+                placeholder="E.g.: Maria G."
                 className="w-full px-4 py-2 border border-stone rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm text-muted mb-1">Estrellas (1-5)</label>
+              <label className="block text-sm text-muted mb-1">Stars (1-5)</label>
               <input
                 type="number"
                 value={form.reviewRating}
@@ -296,7 +296,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
       {isEdit && product && (
         <div id="upload" className="border-t border-stone/30 pt-6">
-          <h3 className="font-display text-lg text-dark mb-3">Subir nueva imagen</h3>
+          <h3 className="font-display text-lg text-dark mb-3">Upload new image</h3>
           <input
             ref={fileInputRef}
             type="file"
@@ -315,7 +315,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             ) : (
               <Upload className="w-4 h-4" />
             )}
-            {uploading ? "Subiendo..." : "Seleccionar imagen"}
+            {uploading ? "Uploading..." : "Select image"}
           </button>
         </div>
       )}
@@ -327,7 +327,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           className="px-6 py-2 bg-terracotta text-white rounded-lg font-medium hover:bg-terracotta/90 disabled:opacity-50 flex items-center gap-2"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isEdit ? "Guardar cambios" : "Crear producto"}
+          {isEdit ? "Save changes" : "Create product"}
         </button>
         <button
           type="button"
@@ -335,7 +335,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           className="px-6 py-2 border border-stone rounded-lg hover:bg-stone/20 transition-colors flex items-center gap-2"
         >
           <X className="w-4 h-4" />
-          Cancelar
+          Cancel
         </button>
       </div>
     </form>

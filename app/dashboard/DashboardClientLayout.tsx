@@ -14,25 +14,31 @@ import {
   LogOut,
   UtensilsCrossed,
   Settings,
+  DollarSign,
+  Tag,
 } from "lucide-react";
 import { onAuthChange, signOutUser, getUserRole } from "@/lib/firebase/auth";
 import { QuoteBadge } from "@/components/dashboard/QuoteBadge";
 
-const salesNav = [
+
+const driverNav = [{ href: "/dashboard/driver", label: "My Deliveries", icon: MapPin }];
+
+const adminNav = [
+  { href: "/dashboard/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/admin/products", label: "Products", icon: UtensilsCrossed },
+  { href: "/dashboard/coupons", label: "Coupons", icon: Tag },
+  { href: "/dashboard/pricing", label: "Pricing", icon: DollarSign },
+  { href: "/dashboard/admin/settings", label: "Settings", icon: Settings },
+];
+
+const salesNavWithPricing = [
   { href: "/dashboard/sales", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/sales/quotes", label: "Quotes", icon: FileText },
   { href: "/dashboard/sales/orders", label: "Orders", icon: Package },
   { href: "/dashboard/sales/deliveries", label: "Deliveries", icon: Truck },
   { href: "/dashboard/sales/invoices", label: "Invoices", icon: Receipt },
   { href: "/dashboard/sales/team", label: "Team", icon: Users },
-];
-
-const driverNav = [{ href: "/dashboard/driver", label: "My Deliveries", icon: MapPin }];
-
-const adminNav = [
-  { href: "/dashboard/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/admin/products", label: "Productos", icon: UtensilsCrossed },
-  { href: "/dashboard/admin/settings", label: "Configuración", icon: Settings },
+  { href: "/dashboard/pricing", label: "Pricing", icon: DollarSign },
 ];
 
 export function DashboardClientLayout({
@@ -63,7 +69,7 @@ export function DashboardClientLayout({
       });
       setRole(r);
 
-      if (r === "driver" && (pathname.startsWith("/dashboard/sales") || pathname.startsWith("/dashboard/admin"))) {
+      if (r === "driver" && (pathname.startsWith("/dashboard/sales") || pathname.startsWith("/dashboard/admin") || pathname.startsWith("/dashboard/pricing"))) {
         router.replace("/dashboard/driver");
       } else if (r === "sales" && (pathname === "/dashboard/driver" || pathname.startsWith("/dashboard/admin"))) {
         router.replace("/dashboard/sales");
@@ -90,7 +96,7 @@ export function DashboardClientLayout({
     );
   }
 
-  const nav = role === "admin" ? adminNav : role === "driver" ? driverNav : salesNav;
+  const nav = role === "admin" ? adminNav : role === "driver" ? driverNav : salesNavWithPricing;
   const isAdmin = role === "admin";
   const isSales = role === "sales";
 

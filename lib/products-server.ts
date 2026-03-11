@@ -3,7 +3,7 @@ import type { Product } from "@/lib/product-types";
 
 const subcategoryOrder = ["Sandwiches", "Snacks", "Salads"];
 
-/** Obtiene productos desde Firestore (solo disponibles). Para uso en servidor. */
+/** Fetches products from Firestore (available only). For server-side use. */
 export async function getProductsFromFirestore(includeUnavailable = false): Promise<Product[]> {
   const snapshot = await adminDb
     .collection("products")
@@ -25,7 +25,7 @@ export async function getProductsFromFirestore(includeUnavailable = false): Prom
   return products.filter((p) => p.isAvailable !== false);
 }
 
-/** Agrupa productos por subcategoría en el orden definido */
+/** Groups products by subcategory in the defined order */
 export function groupProductsBySubcategory(products: Product[]) {
   const bySub = new Map<string, Product[]>();
   for (const p of products) {

@@ -5,7 +5,7 @@ import type { Product, ProductUpdateInput } from "@/lib/product-types";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/products/[id] - Obtener un producto (público) */
+/** GET /api/products/[id] - Get a product (public) */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }

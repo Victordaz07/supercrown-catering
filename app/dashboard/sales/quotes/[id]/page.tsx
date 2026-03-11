@@ -14,6 +14,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { FLEET_CONFIG, type VehicleId } from "@/lib/fleet-config";
 
 type QuoteItem = {
   id: string;
@@ -23,6 +24,21 @@ type QuoteItem = {
   quantity: number;
   unitPrice: number | null;
   subtotal: number | null;
+};
+
+type RouteSuggestion = {
+  zoneId: string;
+  zoneLabel: string;
+  milesEstimated: number;
+  stopsCount: number;
+  trayEquivalent: number;
+  refrigerationRequired: boolean;
+  suggestedVehicleId: VehicleId;
+  suggestedVehicleLabel: string;
+  suggestedStops: number;
+  estimatedLoadLevel: "low" | "medium" | "high";
+  confidence: "low" | "medium" | "high";
+  reasonCodes: string[];
 };
 
 export default function QuoteReviewPage() {
@@ -43,6 +59,14 @@ export default function QuoteReviewPage() {
   const [assignDriverId, setAssignDriverId] = useState("");
   const [assignDate, setAssignDate] = useState("");
   const [assignTime, setAssignTime] = useState("");
+  const [vehicleId, setVehicleId] = useState<VehicleId | "">("");
+  const [vehicleDecisionSource, setVehicleDecisionSource] = useState<"manual" | "suggested">(
+    "manual"
+  );
+  const [stopsCountHint, setStopsCountHint] = useState(1);
+  const [estimatedMilesInput, setEstimatedMilesInput] = useState("");
+  const [suggestingRoute, setSuggestingRoute] = useState(false);
+  const [routeSuggestion, setRouteSuggestion] = useState<RouteSuggestion | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
 
@@ -208,12 +232,24 @@ export default function QuoteReviewPage() {
     setAssigning(true);
     setError(null);
     try {
+      const chosenVehicle =
+        vehicleId || routeSuggestion?.suggestedVehicleId || "ford_connect_small_2";
       const deliveryRef = doc(collection(db, "deliveries"));
       await setDoc(deliveryRef, {
         orderId: oid,
         driverId: assignDriverId,
         deliveryDate: assignDate,
         scheduledTime: assignTime || null,
+        vehicleId: chosenVehicle,
+        vehicleDecisionSource,
+        routeStopsCount: stopsCountHint,
+        routeMilesEstimated: Number(estimatedMilesInput) || routeSuggestion?.milesEstimated || null,
+        routeZoneId: routeSuggestion?.zoneId ?? null,
+        routeZoneLabel: routeSuggestion?.zoneLabel ?? null,
+        refrigerationRequired: routeSuggestion?.refrigerationRequired ?? false,
+        trayEquivalent: routeSuggestion?.trayEquivalent ?? null,
+        suggestionConfidence: routeSuggestion?.confidence ?? null,
+        suggestionReasonCodes: routeSuggestion?.reasonCodes ?? [],
         status: "pending",
         createdAt: serverTimestamp(),
       });
@@ -222,6 +258,46 @@ export default function QuoteReviewPage() {
       setError(err instanceof Error ? err.message : "Failed to assign");
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleSuggestRoute = async () => {
+    const deliveryAddress = String(quote?.deliveryAddress ?? "").trim();
+    if (!deliveryAddress) {
+      setError("Delivery address is required to analyze route");
+      return;
+    }
+
+    setSuggestingRoute(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/deliveries/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primaryAddress: deliveryAddress,
+          stopsCountHint,
+          estimatedMiles: Number(estimatedMilesInput) || null,
+          items: items.map((item) => ({
+            name: item.productName,
+            category: item.category,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      const data = (await res.json()) as RouteSuggestion | { error?: string };
+      if (!res.ok) {
+        throw new Error("error" in data ? data.error || "Failed to analyze route" : "Failed to analyze route");
+      }
+
+      const suggestion = data as RouteSuggestion;
+      setRouteSuggestion(suggestion);
+      setVehicleId(suggestion.suggestedVehicleId);
+      setVehicleDecisionSource("suggested");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to analyze route");
+    } finally {
+      setSuggestingRoute(false);
     }
   };
 
@@ -365,6 +441,52 @@ export default function QuoteReviewPage() {
             <div className="bg-warm border border-stone/40 rounded-sm p-4">
               <h2 className="font-display text-lg text-dark mb-3">Assign Driver</h2>
               <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={stopsCountHint}
+                    onChange={(e) => setStopsCountHint(Math.max(1, Number(e.target.value) || 1))}
+                    className="bg-cream border border-stone rounded-sm px-3 py-2"
+                    placeholder="Stops count"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={estimatedMilesInput}
+                    onChange={(e) => setEstimatedMilesInput(e.target.value)}
+                    className="bg-cream border border-stone rounded-sm px-3 py-2"
+                    placeholder="Miles (optional)"
+                  />
+                </div>
+                <button
+                  onClick={handleSuggestRoute}
+                  disabled={suggestingRoute}
+                  className="w-full border border-stone text-dark py-2 px-4 rounded-sm font-medium hover:bg-stone/10 disabled:opacity-70"
+                >
+                  {suggestingRoute ? "Analyzing route..." : "Analyze route and suggest vehicle"}
+                </button>
+
+                {routeSuggestion && (
+                  <div className="rounded-sm border border-stone/40 bg-cream p-3 text-sm space-y-1">
+                    <p className="text-dark">
+                      Suggested vehicle: <strong>{routeSuggestion.suggestedVehicleLabel}</strong>
+                    </p>
+                    <p className="text-muted">
+                      Zone: {routeSuggestion.zoneLabel} | Stops: {routeSuggestion.stopsCount} | Miles:{" "}
+                      {routeSuggestion.milesEstimated}
+                    </p>
+                    <p className="text-muted">
+                      Tray load: {routeSuggestion.trayEquivalent} | Refrigeration:{" "}
+                      {routeSuggestion.refrigerationRequired ? "required" : "not required"}
+                    </p>
+                    <p className="text-muted">
+                      Confidence: {routeSuggestion.confidence} | Load level: {routeSuggestion.estimatedLoadLevel}
+                    </p>
+                  </div>
+                )}
+
                 <select
                   value={assignDriverId}
                   onChange={(e) => setAssignDriverId(e.target.value)}
@@ -374,6 +496,21 @@ export default function QuoteReviewPage() {
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={vehicleId}
+                  onChange={(e) => {
+                    setVehicleId(e.target.value as VehicleId);
+                    setVehicleDecisionSource("manual");
+                  }}
+                  className="w-full bg-cream border border-stone rounded-sm px-3 py-2"
+                >
+                  <option value="">Select vehicle...</option>
+                  {FLEET_CONFIG.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.label} {vehicle.refrigerated ? "(Refrigerated)" : "(Non-refrigerated)"}
                     </option>
                   ))}
                 </select>

@@ -12,10 +12,10 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Ayuda a depurar: si la API key falta, Firebase da error genérico
+// Helps debug: if API key is missing, Firebase gives generic error
 if (typeof window !== "undefined" && !firebaseConfig.apiKey) {
   console.error(
-    "[Firebase] NEXT_PUBLIC_FIREBASE_API_KEY no definida. Verifica .env.local y reinicia npm run dev."
+    "[Firebase] NEXT_PUBLIC_FIREBASE_API_KEY not defined. Check .env.local and restart npm run dev."
   );
 }
 

@@ -48,7 +48,7 @@ export default function AdminProductsPage() {
   };
 
   const deleteProduct = async (id: string) => {
-    if (!confirm("¿Eliminar este producto permanentemente?")) return;
+    if (!confirm("Delete this product permanently?")) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
@@ -56,11 +56,11 @@ export default function AdminProductsPage() {
         setProducts((prev) => prev.filter((x) => x.id !== id));
       } else {
         const err = await res.json();
-        alert(err.error || "Error al eliminar");
+        alert(err.error || "Error deleting");
       }
     } catch (e) {
       console.error(e);
-      alert("Error al eliminar");
+      alert("Error deleting");
     } finally {
       setDeleting(null);
     }
@@ -86,14 +86,14 @@ export default function AdminProductsPage() {
               onChange={(e) => setIncludeUnavailable(e.target.checked)}
               className="rounded border-stone"
             />
-            Mostrar no disponibles
+            Show unavailable
           </label>
           <Link
             href="/dashboard/admin/products/new"
             className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-white rounded-lg text-sm font-medium hover:bg-terracotta/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Nuevo
+            New
           </Link>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function AdminProductsPage() {
                 )}
                 {!p.isAvailable && (
                   <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">
-                    No disponible
+                    Unavailable
                   </span>
                 )}
               </div>
@@ -143,27 +143,27 @@ export default function AdminProductsPage() {
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-terracotta/20 text-terracotta rounded hover:bg-terracotta/30 transition-colors"
                   >
                     <Pencil className="w-3 h-3" />
-                    Editar
+                    Edit
                   </Link>
                   <button
                     type="button"
                     onClick={() => toggleAvailability(p)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-stone/30 text-dark rounded hover:bg-stone/40 transition-colors"
-                    title={p.isAvailable ? "Ocultar temporalmente" : "Mostrar"}
+                    title={p.isAvailable ? "Hide temporarily" : "Show"}
                   >
                     {p.isAvailable ? (
                       <EyeOff className="w-3 h-3" />
                     ) : (
                       <Eye className="w-3 h-3" />
                     )}
-                    {p.isAvailable ? "Ocultar" : "Mostrar"}
+                    {p.isAvailable ? "Hide" : "Show"}
                   </button>
                   <Link
                     href={`/dashboard/admin/products/${p.id}/edit#upload`}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-stone/30 text-dark rounded hover:bg-stone/40 transition-colors"
                   >
                     <Upload className="w-3 h-3" />
-                    Foto
+                    Photo
                   </Link>
                   <button
                     type="button"
@@ -176,7 +176,7 @@ export default function AdminProductsPage() {
                     ) : (
                       <Trash2 className="w-3 h-3" />
                     )}
-                    Eliminar
+                    Delete
                   </button>
                 </div>
               </div>
@@ -187,12 +187,12 @@ export default function AdminProductsPage() {
 
       {products.length === 0 && (
         <div className="text-center py-12 text-muted">
-          <p>No hay productos</p>
+          <p>No products</p>
           <Link
             href="/dashboard/admin/products/new"
             className="mt-2 inline-block text-terracotta hover:underline"
           >
-            Crear el primer producto
+            Create the first product
           </Link>
         </div>
       )}

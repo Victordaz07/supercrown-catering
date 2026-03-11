@@ -71,6 +71,14 @@ With this system, Super Crown (or any catering business using this codebase) can
 - Store PDFs in Cloud Storage and save metadata in Firestore.
 - Email invoice links to clients (when email provider is configured).
 
+### 8) Route Intelligence and Vehicle Recommendation
+- Sales can analyze a route before assigning delivery.
+- System classifies service area (North Bay, South Bay, Oakland/East Bay, Sausalito/North, etc.).
+- Capacity is estimated with tray-equivalent logic (aligned to catering operations).
+- Suggests the best vehicle based on load, stops, and refrigeration requirements.
+- Hybrid workflow: system recommends, operations team confirms or adjusts manually.
+- Delivery records now store route/vehicle decision metadata for auditing and optimization.
+
 ---
 
 ## Business Workflows (End-to-End)
@@ -78,10 +86,11 @@ With this system, Super Crown (or any catering business using this codebase) can
 1. Visitor explores services and menu.
 2. Visitor submits a quote request.
 3. Sales team reviews quote and converts it into an order flow.
-4. Delivery is scheduled and assigned to a driver.
-5. Driver executes and confirms delivery.
-6. System generates invoice and sends it to the client.
-7. Admin updates menu/catalog as business evolves.
+4. Sales analyzes route and receives a vehicle recommendation.
+5. Delivery is scheduled and assigned to a driver (with suggested or manual vehicle choice).
+6. Driver executes and confirms delivery.
+7. System generates invoice and sends it to the client.
+8. Admin updates menu/catalog as business evolves.
 
 ---
 
@@ -98,8 +107,10 @@ With this system, Super Crown (or any catering business using this codebase) can
 1. Sign in at `/login` with a `sales` (or `admin`) account.
 2. Open the Sales dashboard.
 3. Review incoming quotes and update status.
-4. Prepare order/delivery coordination.
-5. Generate invoice when appropriate.
+4. Approve quote and open delivery assignment.
+5. Run route analysis (stops + estimated miles) and review suggested vehicle.
+6. Accept suggestion or adjust vehicle manually.
+7. Generate invoice when appropriate.
 
 ### For Drivers
 1. Sign in with a `driver` account.
@@ -254,7 +265,7 @@ This platform is ready to scale. High-impact future modules:
 - Lead scoring and CRM integrations (HubSpot, Pipedrive).
 
 ### Operations
-- Driver route optimization with multi-stop planning.
+- Advanced driver route optimization with multi-stop sequencing (v2 on top of current recommendation engine).
 - Capacity planning by kitchen load and shift schedules.
 - Inventory-aware menu availability and ingredient alerts.
 - SLA dashboard for quote response and delivery punctuality.

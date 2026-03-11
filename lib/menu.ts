@@ -19,7 +19,7 @@ export interface MenuItem {
   isPopular: boolean;
   isVegetarian: boolean;
   imagePlaceholder: string;
-  /** URL de imagen en Storage (prioridad sobre menuImageMap) */
+  /** Image URL in Storage (takes priority over menuImageMap) */
   imageUrl?: string | null;
   review: MenuItemReview;
 }

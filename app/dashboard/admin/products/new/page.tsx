@@ -8,7 +8,7 @@ export default function NewProductPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl text-dark">Nuevo producto</h1>
+      <h1 className="font-display text-2xl text-dark">New product</h1>
       <ProductForm
         product={null}
         onSuccess={() => router.push("/dashboard/admin/products")}

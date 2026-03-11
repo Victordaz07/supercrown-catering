@@ -103,9 +103,9 @@ export async function POST(request: Request) {
     page.drawText(`$${Number(total).toFixed(2)}`, { x: 500, y, size: 11, font: fontBold, color: terracotta });
     y -= 36;
 
-    page.drawText("ENTREGADO POR: _________________________", { x: 50, y, size: 10, font, color: muted });
+    page.drawText("DELIVERED BY: _________________________", { x: 50, y, size: 10, font, color: muted });
     y -= 16;
-    page.drawText("RECIBIDO POR: _________________________", { x: 50, y, size: 10, font, color: muted });
+    page.drawText("RECEIVED BY: _________________________", { x: 50, y, size: 10, font, color: muted });
     y -= 36;
 
     page.drawText("Thank you for your business!", { x: 50, y, size: 10, font: fontBold, color: dark });

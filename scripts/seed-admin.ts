@@ -1,13 +1,13 @@
 /**
- * Script para crear el primer usuario de ventas.
- * Ejecutar: npx tsx scripts/seed-admin.ts
+ * Script to create the first sales user.
+ * Run: npx tsx scripts/seed-admin.ts
  *
- * Requiere: .env.local con FIREBASE_ADMIN_*
+ * Requires: .env.local with FIREBASE_ADMIN_*
  */
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-// Cargar .env.local
+// Load .env.local
 dotenv.config({ path: path.join(__dirname, "..", ".env.local") });
 
 const email = process.env.SEED_ADMIN_EMAIL || "admin@supercrowncatering.com";
@@ -17,7 +17,7 @@ const name = process.env.SEED_ADMIN_NAME || "Admin";
 async function main() {
   const { adminAuth, adminDb } = await import("../lib/firebase/admin");
 
-  console.log("Creando usuario de ventas:", email);
+  console.log("Creating sales user:", email);
 
   let user;
   try {
@@ -27,20 +27,20 @@ async function main() {
       displayName: name,
       emailVerified: true,
     });
-    console.log("Usuario creado en Auth:", user.uid);
+    console.log("User created in Auth:", user.uid);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("already exists")) {
       const existing = await adminAuth.getUserByEmail(email);
       user = existing;
-      console.log("Usuario ya existe en Auth:", user.uid);
+      console.log("User already exists in Auth:", user.uid);
     } else {
       throw err;
     }
   }
 
   await adminAuth.setCustomUserClaims(user.uid, { role: "sales" });
-  console.log("Rol 'sales' asignado en custom claims");
+  console.log("Role 'sales' assigned in custom claims");
 
   await adminDb.collection("users").doc(user.uid).set(
     {
@@ -51,9 +51,9 @@ async function main() {
     },
     { merge: true }
   );
-  console.log("Documento creado en Firestore users/");
+  console.log("Document created in Firestore users/");
 
-  console.log("\n✅ Listo. Puedes iniciar sesión en /login con:");
+  console.log("\n✅ Done. You can sign in at /login with:");
   console.log("   Email:", email);
   console.log("   Password:", password);
 }

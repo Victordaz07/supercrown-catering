@@ -58,11 +58,11 @@ export default function TeamPage() {
       if (!res.ok) {
         throw new Error(data.error || "Failed to create user");
       }
-      setSuccess(`${form.role === "driver" ? "Repartidor" : "Ventas"} creado: ${form.email}`);
+      setSuccess(`${form.role === "driver" ? "Driver" : "Sales"} created: ${form.email}`);
       setForm({ email: "", password: "", name: "", role: "driver" });
       setShowForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al crear usuario");
+      setError(err instanceof Error ? err.message : "Error creating user");
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function TeamPage() {
           className="flex items-center gap-2"
         >
           <UserPlus className="w-4 h-4" />
-          Agregar miembro
+          Add member
         </Button>
       </div>
 
@@ -88,17 +88,17 @@ export default function TeamPage() {
           onSubmit={handleSubmit}
           className="bg-warm border border-stone/40 rounded-sm p-6 space-y-4"
         >
-          <h2 className="font-display text-lg text-dark">Nuevo miembro del equipo</h2>
+          <h2 className="font-display text-lg text-dark">New team member</h2>
           <div>
             <label className="block text-muted text-xs uppercase tracking-wider mb-1.5">
-              Nombre
+              Name
             </label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className={inputStyles}
-              placeholder="Juan Pérez"
+              placeholder="John Doe"
               required
             />
           </div>
@@ -117,7 +117,7 @@ export default function TeamPage() {
           </div>
           <div>
             <label className="block text-muted text-xs uppercase tracking-wider mb-1.5">
-              Contraseña (mín. 6 caracteres)
+              Password (min. 6 characters)
             </label>
             <input
               type="password"
@@ -130,7 +130,7 @@ export default function TeamPage() {
           </div>
           <div>
             <label className="block text-muted text-xs uppercase tracking-wider mb-1.5">
-              Rol
+              Role
             </label>
             <select
               value={form.role}
@@ -139,8 +139,8 @@ export default function TeamPage() {
               }
               className={inputStyles}
             >
-              <option value="driver">Repartidor</option>
-              <option value="sales">Ventas</option>
+              <option value="driver">Driver</option>
+              <option value="sales">Sales</option>
             </select>
           </div>
           {error && (
@@ -155,7 +155,7 @@ export default function TeamPage() {
           )}
           <div className="flex gap-3">
             <Button type="submit" disabled={loading}>
-              {loading ? "Creando..." : "Crear"}
+              {loading ? "Creating..." : "Create"}
             </Button>
             <Button
               type="button"
@@ -163,7 +163,7 @@ export default function TeamPage() {
               onClick={() => setShowForm(false)}
               disabled={loading}
             >
-              Cancelar
+              Cancel
             </Button>
           </div>
         </form>
@@ -171,9 +171,9 @@ export default function TeamPage() {
 
       <div className="grid sm:grid-cols-2 gap-6">
         <div className="bg-warm border border-stone/40 rounded-sm p-4">
-          <h2 className="font-display text-lg text-dark mb-3">Ventas</h2>
+          <h2 className="font-display text-lg text-dark mb-3">Sales</h2>
           {sales.length === 0 ? (
-            <p className="text-muted text-sm">No hay usuarios de ventas.</p>
+            <p className="text-muted text-sm">No sales users.</p>
           ) : (
             <ul className="space-y-2 text-sm">
               {sales.map((u) => (
@@ -185,9 +185,9 @@ export default function TeamPage() {
           )}
         </div>
         <div className="bg-warm border border-stone/40 rounded-sm p-4">
-          <h2 className="font-display text-lg text-dark mb-3">Repartidores</h2>
+          <h2 className="font-display text-lg text-dark mb-3">Drivers</h2>
           {drivers.length === 0 ? (
-            <p className="text-muted text-sm">No hay repartidores. Agrega uno con el botón arriba.</p>
+            <p className="text-muted text-sm">No drivers. Add one with the button above.</p>
           ) : (
             <ul className="space-y-2 text-sm">
               {drivers.map((u) => (

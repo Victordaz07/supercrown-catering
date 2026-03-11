@@ -146,8 +146,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: isAdminError
-          ? "Configura Firebase Admin: ejecuta 'npm run setup:admin' y vuelve a desplegar."
-          : "No se pudo enviar la cotización. Intenta de nuevo.",
+          ? "Configure Firebase Admin: run 'npm run setup:admin' and redeploy."
+          : "Could not send the quote. Please try again.",
       },
       { status: 500 }
     );

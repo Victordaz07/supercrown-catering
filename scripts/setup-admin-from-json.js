@@ -1,11 +1,11 @@
 /**
- * Configura Firebase Admin en .env.local desde el JSON de cuenta de servicio.
+ * Configures Firebase Admin in .env.local from the service account JSON.
  *
- * Uso:
- * 1. Descarga el JSON desde Firebase Console → Configuración → Cuentas de servicio → Generar clave
- * 2. Guarda el archivo como service-account.json en la raíz del proyecto
- * 3. Ejecuta: node scripts/setup-admin-from-json.js
- * 4. Borra service-account.json por seguridad
+ * Usage:
+ * 1. Download the JSON from Firebase Console → Settings → Service accounts → Generate key
+ * 2. Save the file as service-account.json in the project root
+ * 3. Run: node scripts/setup-admin-from-json.js
+ * 4. Delete service-account.json for security
  */
 
 const fs = require("fs");
@@ -16,8 +16,8 @@ const jsonPath = path.join(projectRoot, "service-account.json");
 const envPath = path.join(projectRoot, ".env.local");
 
 if (!fs.existsSync(jsonPath)) {
-  console.error("No se encontró service-account.json");
-  console.log("Descárgalo desde: https://console.firebase.google.com/project/supercrown-catering/settings/serviceaccounts/adminsdk");
+  console.error("service-account.json not found");
+  console.log("Download it from: https://console.firebase.google.com/project/supercrown-catering/settings/serviceaccounts/adminsdk");
   process.exit(1);
 }
 
@@ -43,5 +43,5 @@ for (const [key, value] of Object.entries(updates)) {
 }
 
 fs.writeFileSync(envPath, envContent.trim() + "\n");
-console.log("✓ .env.local actualizado con credenciales de Firebase Admin");
-console.log("  Elimina service-account.json por seguridad: del service-account.json");
+console.log("✓ .env.local updated with Firebase Admin credentials");
+console.log("  Delete service-account.json for security: del service-account.json");

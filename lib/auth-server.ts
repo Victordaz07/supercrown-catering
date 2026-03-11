@@ -54,11 +54,16 @@ export async function requireAdmin(): Promise<SessionUser> {
   return user;
 }
 
-/** Admin o Sales pueden crear usuarios */
+/** Admin or Sales can create users */
 export async function requireAdminOrSales(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user || (user.role !== "admin" && user.role !== "sales")) {
     throw new Error("Unauthorized: admin or sales role required");
   }
   return user;
+}
+
+/** MASTER/ADMIN/SALES: required for full order editing */
+export async function requireMasterAdminSales(): Promise<SessionUser> {
+  return requireAdminOrSales();
 }

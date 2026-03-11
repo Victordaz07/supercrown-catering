@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth-server";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/products/[id]/upload-image - Subir imagen para producto (admin) */
+/** POST /api/products/[id]/upload-image - Upload image for product (admin) */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 
 /**
- * Asigna rol 'client' a un usuario recién registrado.
- * Solo usuarios sin rol o con rol 'client' pueden usar este endpoint.
+ * Assigns 'client' role to a newly registered user.
+ * Only users without role or with 'client' role can use this endpoint.
  */
 export async function POST(request: Request) {
   try {
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     await adminDb.collection("users").doc(uid).set(
       {
         email,
-        name: (name && String(name).trim()) || email || "Cliente",
+        name: (name && String(name).trim()) || email || "Client",
         role: "client",
         createdAt: new Date(),
       },

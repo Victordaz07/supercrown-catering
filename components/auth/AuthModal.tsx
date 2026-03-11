@@ -43,12 +43,12 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
       const role = await getUserRole(user);
 
       if (role !== "client" && role !== null) {
-        setError("Esta cuenta es del equipo. Usa el enlace Team Login en el menú.");
+        setError("This is a team account. Use the Team Login link in the menu.");
         return;
       }
 
       if (!role) {
-        setError("Cuenta sin rol asignado. Regístrate primero.");
+        setError("Account without assigned role. Register first.");
         return;
       }
 
@@ -61,7 +61,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Error al crear sesión");
+        throw new Error(errData.error || "Error creating session");
       }
 
       resetForm();
@@ -69,7 +69,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
       onClose();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Email o contraseña incorrectos."
+        err instanceof Error ? err.message : "Incorrect email or password."
       );
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Error al registrar");
+        throw new Error(data.error || "Error registering");
       }
 
       const idToken = await user.getIdToken(true);
@@ -102,7 +102,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
       });
       if (!sessionRes.ok) {
         const errData = await sessionRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Error al crear sesión");
+        throw new Error(errData.error || "Error creating session");
       }
 
       resetForm();
@@ -111,7 +111,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("email-already-in-use") || msg.includes("already in use")) {
-        setError("Este email ya está registrado. Inicia sesión.");
+        setError("This email is already registered. Sign in.");
         setTab("login");
       } else {
         setError(msg);
@@ -134,13 +134,13 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-display text-2xl text-dark">
-              {tab === "login" ? "Iniciar sesión" : "Crear cuenta"}
+              {tab === "login" ? "Sign in" : "Create account"}
             </h2>
             <button
               type="button"
               onClick={onClose}
               className="p-2 text-muted hover:text-dark transition-colors"
-              aria-label="Cerrar"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -156,7 +156,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Iniciar sesión
+              Sign in
             </button>
             <button
               type="button"
@@ -167,7 +167,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                   : "text-muted hover:text-dark"
               }`}
             >
-              Registrarse
+              Register
             </button>
           </div>
 
@@ -189,7 +189,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
               </div>
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Contraseña
+                  Password
                 </label>
                 <input
                   type="password"
@@ -211,21 +211,21 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                 disabled={loading}
                 className="w-full bg-terracotta text-cream py-4 px-6 font-medium hover:bg-terracotta/90 active:scale-[0.98] transition-all rounded-sm disabled:opacity-70"
               >
-                {loading ? "Entrando..." : "Entrar"}
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Nombre
+                  Name
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={inputStyles}
-                  placeholder="Tu nombre"
+                  placeholder="Your name"
                   required
                   autoComplete="name"
                   disabled={loading}
@@ -247,7 +247,7 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
               </div>
               <div>
                 <label className="block text-muted text-xs uppercase tracking-wider mb-2">
-                  Contraseña (mín. 6 caracteres)
+                  Password (min. 6 characters)
                 </label>
                 <input
                   type="password"
@@ -270,13 +270,13 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
                 disabled={loading}
                 className="w-full bg-terracotta text-cream py-4 px-6 font-medium hover:bg-terracotta/90 active:scale-[0.98] transition-all rounded-sm disabled:opacity-70"
               >
-                {loading ? "Creando cuenta..." : "Crear cuenta"}
+                {loading ? "Creating account..." : "Create account"}
               </button>
             </form>
           )}
 
           <p className="text-muted text-xs mt-4 text-center">
-            Necesitas una cuenta para enviar tu cotización y que podamos identificarte.
+            You need an account to submit your quote and for us to identify you.
           </p>
         </div>
       </div>

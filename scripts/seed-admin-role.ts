@@ -1,11 +1,11 @@
 /**
- * Convierte un usuario existente (por email) al rol admin.
- * Útil cuando ya tienes un usuario sales y quieres promoverlo a admin.
+ * Converts an existing user (by email) to admin role.
+ * Useful when you already have a sales user and want to promote them to admin.
  *
- * Ejecutar: npx tsx scripts/seed-admin-role.ts
- * Requiere: .env.local con FIREBASE_ADMIN_* y ADMIN_EMAIL
+ * Run: npx tsx scripts/seed-admin-role.ts
+ * Requires: .env.local with FIREBASE_ADMIN_* and ADMIN_EMAIL
  *
- * Ejemplo: ADMIN_EMAIL=admin@supercrowncatering.com npx tsx scripts/seed-admin-role.ts
+ * Example: ADMIN_EMAIL=admin@supercrowncatering.com npx tsx scripts/seed-admin-role.ts
  */
 import * as dotenv from "dotenv";
 import * as path from "path";
@@ -16,7 +16,7 @@ const email = process.env.ADMIN_EMAIL || process.env.SEED_ADMIN_EMAIL;
 
 async function main() {
   if (!email) {
-    console.error("Define ADMIN_EMAIL o SEED_ADMIN_EMAIL en .env.local");
+    console.error("Define ADMIN_EMAIL or SEED_ADMIN_EMAIL in .env.local");
     process.exit(1);
   }
 
@@ -29,7 +29,7 @@ async function main() {
     { merge: true }
   );
 
-  console.log(`✅ Usuario ${email} ahora tiene rol admin`);
+  console.log(`✅ User ${email} now has admin role`);
 }
 
 main().catch((err) => {

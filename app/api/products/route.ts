@@ -5,7 +5,7 @@ import type { Product, ProductCreateInput } from "@/lib/product-types";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/products - Lista productos (público). Solo devuelve isAvailable: true si no es admin. */
+/** GET /api/products - Lists products (public). Returns only isAvailable: true if not admin. */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       await requireAdmin();
       isAdmin = true;
     } catch {
-      // No es admin, solo productos disponibles
+      // Not admin, only available products
     }
 
     const snapshot = await adminDb

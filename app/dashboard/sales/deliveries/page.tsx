@@ -29,13 +29,15 @@ export default function DeliveriesPage() {
               <tr className="bg-stone/20">
                 <th className="text-left px-4 py-2 font-medium text-dark">Delivery Date</th>
                 <th className="text-left px-4 py-2 font-medium text-dark">Driver ID</th>
+                <th className="text-left px-4 py-2 font-medium text-dark">Vehicle</th>
+                <th className="text-left px-4 py-2 font-medium text-dark">Route</th>
                 <th className="text-left px-4 py-2 font-medium text-dark">Status</th>
               </tr>
             </thead>
             <tbody>
               {deliveries.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-muted">
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted">
                     No deliveries yet
                   </td>
                 </tr>
@@ -45,6 +47,10 @@ export default function DeliveriesPage() {
                     <td className="px-4 py-2 text-dark">{String(d.deliveryDate ?? "—")}</td>
                     <td className="px-4 py-2 text-muted font-mono text-xs">
                       {String(d.driverId ?? "—").slice(0, 8)}...
+                    </td>
+                    <td className="px-4 py-2 text-muted">{String(d.vehicleId ?? "—")}</td>
+                    <td className="px-4 py-2 text-muted text-xs">
+                      {String(d.routeZoneLabel ?? "—")} / {String(d.routeMilesEstimated ?? "—")} mi
                     </td>
                     <td className="px-4 py-2 text-muted">{String(d.status ?? "—")}</td>
                   </tr>

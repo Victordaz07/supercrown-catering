@@ -17,11 +17,11 @@ export interface Product {
   isPopular: boolean;
   isVegetarian: boolean;
   imagePlaceholder: string;
-  /** URL de imagen en Firebase Storage (prioridad sobre menuImageMap) */
+  /** Image URL in Firebase Storage (takes priority over menuImageMap) */
   imageUrl?: string | null;
-  /** Si false, no se muestra en el menú público */
+  /** If false, item is not shown on the public menu */
   isAvailable: boolean;
-  /** Orden dentro de la subcategoría */
+  /** Order within the subcategory */
   sortOrder: number;
   review: ProductReview;
   createdAt?: Date;
