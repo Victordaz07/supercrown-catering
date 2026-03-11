@@ -26,12 +26,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
 
-# Firebase service account (nunca commitear)
-service-account.json
-*-firebase-adminsdk-*.json
-.firebase/
+# database
+*.db
+*.db-journal
 
 # vercel
 .vercel
@@ -39,3 +39,5 @@ service-account.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/lib/generated/prisma

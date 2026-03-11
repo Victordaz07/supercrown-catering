@@ -1,317 +1,167 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
-import { requireMasterAdminSales } from "@/lib/auth-server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
-export const dynamic = "force-dynamic";
+type RouteContext = { params: Promise<{ id: string }> };
 
-type AddItemInput = {
-  itemId: string;
-  name: string;
-  category: string;
-  quantity: number;
-  unitPrice?: number;
-};
+export async function GET(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-type UpdateItemInput = {
-  id: string;
-  quantity?: number;
-  unitPrice?: number;
-};
-
-type PatchBody = {
-  status?: string;
-  notes?: string;
-  customerName?: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  deliveryAddress?: string;
-  eventDate?: string;
-  guestCount?: number;
-  eventDetails?: string;
-  addItems?: AddItemInput[];
-  removeItems?: string[];
-  updateItems?: UpdateItemInput[];
-  discountType?: string;
-  discountValue?: number;
-  discountAmount?: number;
-  couponId?: string;
-};
-
-const ORDER_FIELD_MAP: Record<string, string> = {
-  customerName: "clientName",
-  customerEmail: "clientEmail",
-  eventDate: "deliveryDate",
-};
-
-async function getOrderWithItems(orderId: string) {
-  const orderRef = adminDb.collection("orders").doc(orderId);
-  const orderSnap = await orderRef.get();
-  if (!orderSnap.exists) return null;
-
-  const itemsSnap = await orderRef.collection("items").get();
-  const items = itemsSnap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      itemId: data.itemId ?? data.productId ?? "",
-      name: data.name ?? data.productName ?? "",
-      category: data.category ?? "",
-      quantity: data.quantity ?? 1,
-      unitPrice: data.unitPrice ?? 0,
-      subtotal: data.subtotal ?? (data.unitPrice ?? 0) * (data.quantity ?? 1),
-    };
+  const { id } = await params;
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { items: true, invoices: true },
   });
 
-  const orderData = orderSnap.data()!;
-  const createdAt = orderData.createdAt?.toDate?.();
-  const updatedAt = orderData.updatedAt?.toDate?.();
+  if (!order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
 
-  return {
-    id: orderSnap.id,
-    ...orderData,
-    createdAt,
-    updatedAt,
-    items,
-  };
+  return NextResponse.json(order);
 }
 
-/** GET /api/orders/[id] - Get order with items (MASTER/ADMIN/SALES) */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireMasterAdminSales();
-  } catch {
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (
+    !session ||
+    !["MASTER", "ADMIN", "SALES"].includes(session.user.role)
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { id } = await params;
-    const order = await getOrderWithItems(id);
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-    return NextResponse.json(order);
-  } catch (err) {
-    console.error("GET /api/orders/[id]:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch order" },
-      { status: 500 }
-    );
-  }
-}
+  const { id } = await params;
+  const body = await request.json();
 
-/** PATCH /api/orders/[id] - Full order editing (MASTER/ADMIN/SALES) */
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  let sessionUser;
-  try {
-    sessionUser = await requireMasterAdminSales();
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+  if (!order) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  try {
-    const { id: orderId } = await params;
-    const body = (await request.json()) as PatchBody;
+  const uid = session.user.id;
 
-    const orderRef = adminDb.collection("orders").doc(orderId);
-    const orderSnap = await orderRef.get();
-    if (!orderSnap.exists) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  // --- Status change ---
+  if (body.status) {
+    const validStatuses = ["PENDING", "CONFIRMED", "READY", "IN_TRANSIT", "DELIVERED", "CANCELLED"];
+    if (!validStatuses.includes(body.status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
-
-    const orderData = orderSnap.data()!;
-    const orderUpdates: Record<string, unknown> = {
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-
-    const directFields = [
-      "status",
-      "notes",
-      "customerName",
-      "customerEmail",
-      "customerPhone",
-      "deliveryAddress",
-      "eventDate",
-      "guestCount",
-      "eventDetails",
-      "discountType",
-      "discountValue",
-      "discountAmount",
-      "couponId",
-    ] as const;
-
-    for (const key of directFields) {
-      const val = body[key];
-      if (val === undefined) continue;
-
-      const firestoreKey = ORDER_FIELD_MAP[key] ?? key;
-      const oldVal = orderData[firestoreKey] ?? orderData[key];
-      const newVal = typeof val === "number" ? val : String(val);
-
-      if (oldVal !== newVal) {
-        orderUpdates[firestoreKey] = newVal;
-        await logAudit({
-          entity: "Order",
-          entityId: orderId,
-          action: "UPDATE",
-          userId: sessionUser.uid,
-          userEmail: sessionUser.email,
-          oldValue: oldVal,
-          newValue: newVal,
-          field: firestoreKey,
-        });
-      }
+    if (order.status !== body.status) {
+      await logAudit({ userId: uid, action: "STATUS_CHANGE", entity: "Order", entityId: id, field: "status", oldValue: order.status, newValue: body.status });
     }
-
-    const itemsRef = orderRef.collection("items");
-
-    if (Array.isArray(body.removeItems) && body.removeItems.length > 0) {
-      const existingSnap = await itemsRef.get();
-      const existingIds = new Set(existingSnap.docs.map((d) => d.id));
-
-      for (const itemId of body.removeItems) {
-        if (!existingIds.has(itemId)) {
-          return NextResponse.json(
-            { error: `OrderItem ${itemId} does not belong to this order` },
-            { status: 400 }
-          );
-        }
-
-        const itemDoc = await itemsRef.doc(itemId).get();
-        if (itemDoc.exists) {
-          const itemData = itemDoc.data()!;
-          await logAudit({
-            entity: "OrderItem",
-            entityId: itemId,
-            action: "DELETE",
-            userId: sessionUser.uid,
-            userEmail: sessionUser.email,
-            oldValue: itemData,
-            newValue: null,
-          });
-          await itemsRef.doc(itemId).delete();
-        }
-      }
-    }
-
-    if (Array.isArray(body.updateItems) && body.updateItems.length > 0) {
-      const existingSnap = await itemsRef.get();
-      const existingIds = new Set(existingSnap.docs.map((d) => d.id));
-
-      for (const upd of body.updateItems) {
-        if (!existingIds.has(upd.id)) {
-          return NextResponse.json(
-            { error: `OrderItem ${upd.id} does not belong to this order` },
-            { status: 400 }
-          );
-        }
-
-        const itemRef = itemsRef.doc(upd.id);
-        const itemSnap = await itemRef.get();
-        if (!itemSnap.exists) continue;
-
-        const itemData = itemSnap.data()!;
-        const itemUpdates: Record<string, unknown> = {};
-
-        if (upd.quantity !== undefined) {
-          const oldQty = itemData.quantity ?? 1;
-          itemUpdates.quantity = upd.quantity;
-          await logAudit({
-            entity: "OrderItem",
-            entityId: upd.id,
-            action: "UPDATE",
-            userId: sessionUser.uid,
-            userEmail: sessionUser.email,
-            oldValue: { quantity: oldQty },
-            newValue: { quantity: upd.quantity },
-            field: "quantity",
-          });
-        }
-        if (upd.unitPrice !== undefined) {
-          itemUpdates.unitPrice = upd.unitPrice;
-          const qty = (itemUpdates.quantity ?? itemData.quantity ?? 1) as number;
-          itemUpdates.subtotal = upd.unitPrice * qty;
-          await logAudit({
-            entity: "OrderItem",
-            entityId: upd.id,
-            action: "UPDATE",
-            userId: sessionUser.uid,
-            userEmail: sessionUser.email,
-            oldValue: { unitPrice: itemData.unitPrice },
-            newValue: { unitPrice: upd.unitPrice },
-            field: "unitPrice",
-          });
-        }
-
-        if (Object.keys(itemUpdates).length > 0) {
-          await itemRef.update(itemUpdates);
-        }
-      }
-    }
-
-    if (Array.isArray(body.addItems) && body.addItems.length > 0) {
-      for (const item of body.addItems) {
-        const quantity = Math.max(1, Number(item.quantity) || 1);
-        const unitPrice = Number(item.unitPrice) || 0;
-        const subtotal = unitPrice * quantity;
-
-        const newItemRef = itemsRef.doc();
-        const newItem = {
-          itemId: item.itemId ?? "",
-          name: item.name ?? "",
-          category: item.category ?? "",
-          quantity,
-          unitPrice,
-          subtotal,
-          productId: item.itemId ?? "",
-          productName: item.name ?? "",
-        };
-
-        await newItemRef.set(newItem);
-
-        await logAudit({
-          entity: "OrderItem",
-          entityId: newItemRef.id,
-          action: "CREATE",
-          userId: sessionUser.uid,
-          userEmail: sessionUser.email,
-          oldValue: null,
-          newValue: newItem,
-        });
-      }
-    }
-
-    if (
-      body.removeItems?.length ||
-      body.updateItems?.length ||
-      body.addItems?.length
-    ) {
-      const itemsSnap = await itemsRef.get();
-      const totalItems = itemsSnap.docs.reduce(
-        (sum, d) => sum + ((d.data().quantity as number) ?? 1),
-        0
-      );
-      orderUpdates.totalItems = totalItems;
-    }
-
-    if (Object.keys(orderUpdates).length > 1) {
-      await orderRef.update(orderUpdates);
-    }
-
-    const updatedOrder = await getOrderWithItems(orderId);
-    return NextResponse.json(updatedOrder);
-  } catch (err) {
-    console.error("PATCH /api/orders/[id]:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update order" },
-      { status: 500 }
-    );
   }
+
+  // --- Simple field updates with audit ---
+  const editableFields: Array<{ key: string; dbKey?: string }> = [
+    { key: "customerName" },
+    { key: "customerEmail" },
+    { key: "customerPhone" },
+    { key: "deliveryAddress" },
+    { key: "guestCount" },
+    { key: "eventDetails" },
+    { key: "notes" },
+    { key: "discountType" },
+    { key: "discountValue" },
+    { key: "discountAmount" },
+  ];
+
+  const orderUpdate: Record<string, unknown> = {};
+
+  if (body.status) orderUpdate.status = body.status;
+
+  for (const { key, dbKey } of editableFields) {
+    if (body[key] !== undefined) {
+      const fieldName = dbKey || key;
+      const oldVal = (order as Record<string, unknown>)[fieldName];
+      if (String(oldVal ?? "") !== String(body[key] ?? "")) {
+        await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: fieldName, oldValue: String(oldVal ?? ""), newValue: String(body[key] ?? "") });
+      }
+      orderUpdate[fieldName] = body[key];
+    }
+  }
+
+  if (body.driverId !== undefined) {
+    orderUpdate.driverId = body.driverId || null;
+    await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: "driverId", oldValue: (order as Record<string, unknown>).driverId as string || "", newValue: body.driverId || "" });
+  }
+
+  if (body.eventDate !== undefined) {
+    const newDate = new Date(body.eventDate);
+    if (order.eventDate.toISOString() !== newDate.toISOString()) {
+      await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: "eventDate", oldValue: order.eventDate.toISOString(), newValue: newDate.toISOString() });
+    }
+    orderUpdate.eventDate = newDate;
+  }
+
+  if (body.couponId !== undefined) {
+    orderUpdate.couponId = body.couponId || null;
+  }
+
+  // --- Add items ---
+  if (Array.isArray(body.addItems) && body.addItems.length > 0) {
+    for (const item of body.addItems) {
+      const created = await prisma.orderItem.create({
+        data: {
+          orderId: id,
+          itemId: item.itemId || "custom",
+          name: item.name,
+          category: item.category || "Custom",
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+        },
+      });
+      await logAudit({ userId: uid, action: "CREATE", entity: "OrderItem", entityId: created.id, newValue: `${item.name} x${item.quantity}`, metadata: { orderId: id } });
+    }
+  }
+
+  // --- Remove items ---
+  if (Array.isArray(body.removeItems) && body.removeItems.length > 0) {
+    for (const itemId of body.removeItems) {
+      const existing = order.items.find((i) => i.id === itemId);
+      if (!existing) continue;
+      await prisma.orderItem.delete({ where: { id: itemId } });
+      await logAudit({ userId: uid, action: "DELETE", entity: "OrderItem", entityId: itemId, oldValue: `${existing.name} x${existing.quantity}`, metadata: { orderId: id } });
+    }
+  }
+
+  // --- Update items ---
+  if (Array.isArray(body.updateItems) && body.updateItems.length > 0) {
+    for (const upd of body.updateItems) {
+      const existing = order.items.find((i) => i.id === upd.id);
+      if (!existing) continue;
+
+      const data: Record<string, unknown> = {};
+      if (upd.quantity !== undefined && upd.quantity !== existing.quantity) {
+        data.quantity = upd.quantity;
+        await logAudit({ userId: uid, action: "UPDATE", entity: "OrderItem", entityId: upd.id, field: "quantity", oldValue: String(existing.quantity), newValue: String(upd.quantity), metadata: { orderId: id } });
+      }
+      if (upd.unitPrice !== undefined && upd.unitPrice !== existing.unitPrice) {
+        data.unitPrice = upd.unitPrice;
+        await logAudit({ userId: uid, action: "UPDATE", entity: "OrderItem", entityId: upd.id, field: "unitPrice", oldValue: String(existing.unitPrice), newValue: String(upd.unitPrice), metadata: { orderId: id } });
+      }
+      if (Object.keys(data).length > 0) {
+        await prisma.orderItem.update({ where: { id: upd.id }, data });
+      }
+    }
+  }
+
+  // --- Recalculate totalItems ---
+  const updatedItems = await prisma.orderItem.findMany({ where: { orderId: id } });
+  orderUpdate.totalItems = updatedItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  // --- Apply order update ---
+  const updated = await prisma.order.update({
+    where: { id },
+    data: orderUpdate,
+    include: { items: true, invoices: true },
+  });
+
+  return NextResponse.json(updated);
 }

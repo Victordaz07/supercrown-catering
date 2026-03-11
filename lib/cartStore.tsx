@@ -1,8 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect } from "react";
-
-const CART_STORAGE_KEY = "supercrown-cart";
+import React, { createContext, useContext, useReducer } from "react";
 
 export interface CartItem {
   id: string;
@@ -20,8 +18,7 @@ type CartAction =
   | { type: "ADD_ITEM"; payload: CartItem }
   | { type: "REMOVE_ITEM"; payload: { id: string } }
   | { type: "UPDATE_QUANTITY"; payload: { id: string; quantity: number } }
-  | { type: "CLEAR_CART" }
-  | { type: "HYDRATE"; payload: CartItem[] };
+  | { type: "CLEAR_CART" };
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
@@ -52,33 +49,8 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     }
     case "CLEAR_CART":
       return { items: [] };
-    case "HYDRATE":
-      return { items: action.payload };
     default:
       return state;
-  }
-}
-
-function loadCartFromStorage(): CartItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    }
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function saveCartToStorage(items: CartItem[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // ignore
   }
 }
 
@@ -95,17 +67,6 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
-
-  useEffect(() => {
-    const saved = loadCartFromStorage();
-    if (saved.length > 0) {
-      dispatch({ type: "HYDRATE", payload: saved });
-    }
-  }, []);
-
-  useEffect(() => {
-    saveCartToStorage(state.items);
-  }, [state.items]);
 
   const addItem = (item: CartItem) => {
     dispatch({ type: "ADD_ITEM", payload: item });

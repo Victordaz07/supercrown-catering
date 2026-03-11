@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import { CartProvider } from "@/lib/cartStore";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
 const cormorantGaramond = Cormorant_Garamond({
@@ -34,7 +35,9 @@ export default function RootLayout({
       <body
         className={`${cormorantGaramond.variable} ${dmSans.variable} font-body antialiased`}
       >
-        <CartProvider>{children}</CartProvider>
+        <SessionProvider>
+          <CartProvider>{children}</CartProvider>
+        </SessionProvider>
       </body>
     </html>
   );

@@ -1,120 +1,102 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { requireAdmin } from "@/lib/auth-server";
-import type { CouponType } from "../route";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+type RouteContext = { params: Promise<{ id: string }> };
 
-export interface CouponUpdateInput {
-  code?: string;
-  description?: string;
-  type?: CouponType;
-  value?: number;
-  minOrder?: number;
-  maxUses?: number;
-  validUntil?: string;
-  isActive?: boolean;
-}
-
-/** PATCH /api/coupons/[id] - Update coupon (MASTER/ADMIN only) */
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdmin();
-  } catch {
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (!session || !["MASTER", "ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { id } = await params;
-    const body = (await request.json()) as CouponUpdateInput;
+  const { id } = await params;
 
-    const docRef = adminDb.collection("coupons").doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
-    }
-
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date(),
-    };
-
-    if (body.code !== undefined) {
-      updates.code = body.code.trim().toUpperCase();
-    }
-    if (body.description !== undefined) {
-      updates.description = body.description?.trim() || null;
-    }
-    if (body.type !== undefined) {
-      updates.type = body.type === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
-    }
-    if (body.value !== undefined) {
-      updates.value = Number(body.value);
-    }
-    if (body.minOrder !== undefined) {
-      updates.minOrder = body.minOrder != null ? Number(body.minOrder) : null;
-    }
-    if (body.maxUses !== undefined) {
-      updates.maxUses = body.maxUses != null ? Number(body.maxUses) : null;
-    }
-    if (body.validUntil !== undefined) {
-      updates.validUntil =
-        body.validUntil && body.validUntil.trim()
-          ? new Date(body.validUntil + "T23:59:59.999Z")
-          : null;
-    }
-    if (body.isActive !== undefined) {
-      updates.isActive = Boolean(body.isActive);
-    }
-
-    await docRef.update(updates);
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("PATCH /api/coupons/[id]:", err);
-    return NextResponse.json(
-      { error: "Failed to update coupon" },
-      { status: 500 }
-    );
-  }
-}
-
-/** DELETE /api/coupons/[id] - Delete coupon (only if usedCount === 0) */
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdmin();
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const coupon = await prisma.coupon.findUnique({ where: { id } });
+  if (!coupon) {
+    return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
   }
 
-  try {
-    const { id } = await params;
-    const docRef = adminDb.collection("coupons").doc(id);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
-    }
+  const body = await request.json();
+  const {
+    description,
+    type,
+    value,
+    minOrder,
+    maxUses,
+    validUntil,
+    active,
+  } = body as {
+    description?: string;
+    type?: string;
+    value?: number;
+    minOrder?: number;
+    maxUses?: number;
+    validUntil?: string | null;
+    active?: boolean;
+  };
 
-    const usedCount = Number(doc.data()?.usedCount ?? 0);
-    if (usedCount > 0) {
+  const data: Record<string, unknown> = {};
+
+  if (description !== undefined) data.description = description?.trim() || null;
+  if (type !== undefined) {
+    if (!["PERCENTAGE", "FIXED"].includes(type)) {
       return NextResponse.json(
-        { error: "Cannot delete coupon that has been used" },
-        { status: 400 }
+        { error: "Type must be PERCENTAGE or FIXED" },
+        { status: 400 },
       );
     }
+    data.type = type;
+  }
+  if (value !== undefined) {
+    if (value <= 0) {
+      return NextResponse.json(
+        { error: "Value must be greater than 0" },
+        { status: 400 },
+      );
+    }
+    data.value = value;
+  }
+  if (minOrder !== undefined) data.minOrder = minOrder ?? null;
+  if (maxUses !== undefined) data.maxUses = maxUses ?? null;
+  if (validUntil !== undefined) data.validUntil = validUntil ? new Date(validUntil) : null;
+  if (active !== undefined) data.active = active;
 
-    await docRef.delete();
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("DELETE /api/coupons/[id]:", err);
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No changes provided" }, { status: 400 });
+  }
+
+  const updated = await prisma.coupon.update({
+    where: { id },
+    data,
+    include: { _count: { select: { orders: true } } },
+  });
+
+  return NextResponse.json(updated);
+}
+
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (!session || !["MASTER", "ADMIN"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const coupon = await prisma.coupon.findUnique({ where: { id } });
+  if (!coupon) {
+    return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
+  }
+
+  if (coupon.usedCount > 0) {
     return NextResponse.json(
-      { error: "Failed to delete coupon" },
-      { status: 500 }
+      { error: "Cannot delete coupon that has been used" },
+      { status: 400 },
     );
   }
+
+  await prisma.coupon.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
 }

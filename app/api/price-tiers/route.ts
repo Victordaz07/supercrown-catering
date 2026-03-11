@@ -1,95 +1,76 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { requireAdminOrSales } from "@/lib/auth-server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+const ALLOWED_ROLES = ["MASTER", "ADMIN", "SALES"] as const;
 
-export interface PriceTier {
-  id: string;
-  itemId: string;
-  itemName: string;
-  minQty: number;
-  unitPrice: number;
-  discountPercent: number;
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const itemId = searchParams.get("itemId");
+
+  const where = itemId ? { itemId } : {};
+
+  const tiers = await prisma.priceTier.findMany({
+    where,
+    orderBy: [{ itemId: "asc" }, { minQty: "asc" }],
+  });
+
+  return NextResponse.json(tiers);
 }
 
-/** GET /api/price-tiers - List all price tiers (admin/sales) */
-export async function GET() {
-  try {
-    await requireAdminOrSales();
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const snapshot = await adminDb.collection("priceTiers").get();
-
-    const tiers: PriceTier[] = snapshot.docs
-      .map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        itemId: d.itemId ?? "",
-        itemName: d.itemName ?? "",
-        minQty: Number(d.minQty) ?? 0,
-        unitPrice: Number(d.unitPrice) ?? 0,
-        discountPercent: Number(d.discountPercent) ?? 0,
-      };
-    })
-      .sort((a, b) => {
-        const nameCmp = a.itemName.localeCompare(b.itemName);
-        return nameCmp !== 0 ? nameCmp : a.minQty - b.minQty;
-      });
-
-    return NextResponse.json(tiers);
-  } catch (err) {
-    console.error("GET /api/price-tiers:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch price tiers" },
-      { status: 500 }
-    );
-  }
-}
-
-/** POST /api/price-tiers - Create a price tier (admin/sales) */
 export async function POST(request: Request) {
-  try {
-    await requireAdminOrSales();
-  } catch {
+  const session = await getServerSession(authOptions);
+  if (!session || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const body = await request.json();
-    const itemId = String(body.itemId ?? "").trim();
-    const itemName = String(body.itemName ?? "").trim();
-    const minQty = Number(body.minQty) ?? 0;
-    const unitPrice = Number(body.unitPrice) ?? 0;
-    const discountPercent = Number(body.discountPercent) ?? 0;
+  const body = await request.json();
+  const { itemId, itemName, minQty, unitPrice, discountPct } = body as {
+    itemId?: string;
+    itemName?: string;
+    minQty?: number;
+    unitPrice?: number;
+    discountPct?: number;
+  };
 
-    if (!itemId || !itemName) {
+  if (!itemId?.trim()) {
+    return NextResponse.json({ error: "itemId is required" }, { status: 400 });
+  }
+  if (!itemName?.trim()) {
+    return NextResponse.json({ error: "itemName is required" }, { status: 400 });
+  }
+  if (minQty == null || typeof minQty !== "number" || minQty < 0) {
+    return NextResponse.json({ error: "minQty is required and must be a non-negative number" }, { status: 400 });
+  }
+  if (unitPrice == null || typeof unitPrice !== "number" || unitPrice < 0) {
+    return NextResponse.json({ error: "unitPrice is required and must be a non-negative number" }, { status: 400 });
+  }
+
+  const discount = discountPct != null ? Number(discountPct) : 0;
+  if (discount < 0 || discount > 100) {
+    return NextResponse.json({ error: "discountPct must be between 0 and 100" }, { status: 400 });
+  }
+
+  try {
+    const tier = await prisma.priceTier.create({
+      data: {
+        itemId: itemId.trim(),
+        itemName: itemName.trim(),
+        minQty,
+        unitPrice,
+        discountPct: discount,
+      },
+    });
+    return NextResponse.json(tier, { status: 201 });
+  } catch (e) {
+    const prismaError = e as { code?: string };
+    if (prismaError.code === "P2002") {
       return NextResponse.json(
-        { error: "itemId and itemName are required" },
-        { status: 400 }
+        { error: "A price tier already exists for this item with the same minQty" },
+        { status: 409 },
       );
     }
-
-    const doc = {
-      itemId,
-      itemName,
-      minQty,
-      unitPrice,
-      discountPercent,
-    };
-
-    const ref = await adminDb.collection("priceTiers").add(doc);
-
-    return NextResponse.json({ success: true, id: ref.id });
-  } catch (err) {
-    console.error("POST /api/price-tiers:", err);
-    return NextResponse.json(
-      { error: "Failed to create price tier" },
-      { status: 500 }
-    );
+    throw e;
   }
 }

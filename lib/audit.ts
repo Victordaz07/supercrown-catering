@@ -1,49 +1,69 @@
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { prisma } from "./db";
 
-export type AuditAction =
+type AuditAction =
   | "CREATE"
   | "UPDATE"
   | "DELETE"
   | "STATUS_CHANGE"
   | "PAYMENT"
-  | "ADJUSTMENT";
+  | "ADJUSTMENT"
+  | "DELIVERY_REPORT"
+  | "LOGIN";
 
-export interface LogAuditParams {
-  entity: string;
-  entityId: string;
-  action: AuditAction;
+type AuditEntity =
+  | "User"
+  | "Order"
+  | "Invoice"
+  | "OrderItem"
+  | "DeliveryReport"
+  | "InvoiceAdjustment"
+  | "OrderStatusRequest";
+
+interface AuditParams {
   userId: string;
-  userEmail?: string | null;
-  oldValue?: unknown;
-  newValue?: unknown;
+  action: AuditAction;
+  entity: AuditEntity;
+  entityId: string;
   field?: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
-/**
- * Logs an audit entry to Firestore. Use for tracking changes to Orders, OrderItems, etc.
- */
-export async function logAudit(params: LogAuditParams): Promise<void> {
-  const {
-    entity,
-    entityId,
-    action,
-    userId,
-    userEmail,
-    oldValue,
-    newValue,
-    field,
-  } = params;
+export async function logAudit(params: AuditParams): Promise<void> {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: params.userId,
+        action: params.action,
+        entity: params.entity,
+        entityId: params.entityId,
+        field: params.field ?? null,
+        oldValue: params.oldValue ?? null,
+        newValue: params.newValue ?? null,
+        metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+      },
+    });
+  } catch (err) {
+    console.error("[AuditLog] Failed to write:", err);
+  }
+}
 
-  await adminDb.collection("auditLogs").add({
-    entityType: entity,
-    entityId,
-    action,
-    userId,
-    userEmail: userEmail ?? null,
-    oldValue: oldValue !== undefined ? JSON.stringify(oldValue) : null,
-    newValue: newValue !== undefined ? JSON.stringify(newValue) : null,
-    field: field ?? null,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+export async function logAuditBatch(entries: AuditParams[]): Promise<void> {
+  try {
+    await prisma.auditLog.createMany({
+      data: entries.map((p) => ({
+        userId: p.userId,
+        action: p.action,
+        entity: p.entity,
+        entityId: p.entityId,
+        field: p.field ?? null,
+        oldValue: p.oldValue ?? null,
+        newValue: p.newValue ?? null,
+        metadata: p.metadata ? JSON.stringify(p.metadata) : null,
+      })),
+    });
+  } catch (err) {
+    console.error("[AuditLog] Failed to write batch:", err);
+  }
 }

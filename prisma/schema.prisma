@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ───────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // MASTER | ADMIN | SALES | DELIVERY | CLIENT
+  active           Boolean  @default(true)
+  phone            String?
+  marketingConsent Boolean  @default(false)
+  createdById      String?
+  createdBy    User?    @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdUsers User[]   @relation("CreatedByUser")
+
+  // Loyalty & Scoring
+  referralCode String?  @unique
+  loyaltyPoints Int     @default(0)
+  loyaltyTier   String  @default("BRONZE") // BRONZE | SILVER | GOLD | PLATINUM
+  totalSpent    Float   @default(0)
+  totalOrders   Int     @default(0)
+  leadScore     Int     @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs           AuditLog[]
+  driverReports       DeliveryReport[]    @relation("DriverReports")
+  reviewedReports     DeliveryReport[]    @relation("ReviewedReports")
+  approvedAdjustments InvoiceAdjustment[] @relation("ApprovedAdjustments")
+  referralsMade       Referral[]          @relation("ReferrerUser")
+  referralsReceived   Referral[]          @relation("ReferredUser")
+  driverOrders        Order[]             @relation("DriverOrders")
+  driverRoutes        DeliveryRoute[]     @relation("RouteDriver")
+  statusRequestsMade  OrderStatusRequest[] @relation("StatusRequestBy")
+  statusRequestsReviewed OrderStatusRequest[] @relation("StatusRequestReviewBy")
+}
+
+// ─── PRODUCTS (MENU ITEMS) ───────────────────────────────
+
+model Product {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  category         String   // Box Lunch | Grab-N-Go
+  subcategory      String   // Sandwiches | Snacks | Salads
+  description      String
+  shortDescription String
+  ingredients      String   // JSON array
+  calories         Int      @default(0)
+  allergens        String   @default("[]") // JSON array
+  isPopular        Boolean  @default(false)
+  isVegetarian     Boolean  @default(false)
+  isAvailable      Boolean  @default(true)
+  imagePlaceholder String   @default("#C9A07A")
+  imageUrl         String?
+  sortOrder        Int      @default(0)
+  reviewText       String?
+  reviewAuthor     String?
+  reviewRating     Int      @default(5)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─── ORDERS ──────────────────────────────────────────────
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  deliveryAddress String
+  eventDate       DateTime
+  guestCount      String?
+  budget          String?
+  typeOfService   String?
+  eventDetails    String?
+  status          String   @default("PENDING") // PENDING | CONFIRMED | READY | IN_TRANSIT | DELIVERED | CANCELLED
+  totalItems      Int
+  notes           String?
+  discountType    String?  // PERCENTAGE | FIXED | COUPON
+  discountValue   Float    @default(0)
+  discountAmount  Float    @default(0)
+  couponId        String?
+  coupon          Coupon?  @relation(fields: [couponId], references: [id])
+  driverId        String?
+  driver          User?    @relation("DriverOrders", fields: [driverId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items           OrderItem[]
+  invoices        Invoice[]
+  deliveryReports DeliveryReport[]
+  routeStops      RouteStop[]
+  statusRequests  OrderStatusRequest[]
+}
+
+model OrderStatusRequest {
+  id              String   @id @default(cuid())
+  orderId          String
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  currentStatus    String
+  requestedStatus  String
+  reason           String?
+  requestedById    String
+  requestedBy      User     @relation("StatusRequestBy", fields: [requestedById], references: [id])
+  status           String   @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+  reviewedById     String?
+  reviewedBy       User?    @relation("StatusRequestReviewBy", fields: [reviewedById], references: [id])
+  reviewNote       String?
+  reviewedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String
+  name      String
+  category  String
+  quantity  Int
+  unitPrice Float  @default(0)
+
+  deliveryItems DeliveryReportItem[]
+}
+
+// ─── INVOICES ────────────────────────────────────────────
+
+model Invoice {
+  id             String    @id @default(cuid())
+  invoiceNumber  String    @unique
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  subtotal       Float     @default(0)
+  taxRate        Float     @default(0)
+  taxAmount      Float     @default(0)
+  total          Float     @default(0)
+  status         String    @default("DRAFT") // DRAFT | SENT | DELIVERED | ADJUSTED | PAID | OVERDUE | VOID | REFUNDED
+  dueDate        DateTime?
+  paidAt         DateTime?
+  paymentMethod  String?   // CASH | CHECK | CARD | TRANSFER | OTHER
+  paymentRef     String?
+  pdfPathDriver  String?
+  pdfPathClient  String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  adjustments InvoiceAdjustment[]
+}
+
+model InvoiceAdjustment {
+  id               String          @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice         @relation(fields: [invoiceId], references: [id])
+  deliveryReportId String?
+  deliveryReport   DeliveryReport? @relation(fields: [deliveryReportId], references: [id])
+  type             String          // CREDIT | DISCOUNT | REFUND
+  reason           String
+  adjustedItems    String?         // JSON: [{itemId, itemName, qty, amount}]
+  amount           Float           // negative value
+  approvedById     String
+  approvedBy       User            @relation("ApprovedAdjustments", fields: [approvedById], references: [id])
+  createdAt        DateTime        @default(now())
+}
+
+// ─── DELIVERY VERIFICATION ──────────────────────────────
+
+model DeliveryReport {
+  id           String    @id @default(cuid())
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id])
+  driverId     String
+  driver       User      @relation("DriverReports", fields: [driverId], references: [id])
+  receiverName String
+  status       String    @default("PENDING_REVIEW") // PENDING_REVIEW | APPROVED | REJECTED | ESCALATED
+  hasIssues    Boolean   @default(false)
+  notes        String?
+  reviewedById String?
+  reviewedBy   User?     @relation("ReviewedReports", fields: [reviewedById], references: [id])
+  reviewNotes  String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  items       DeliveryReportItem[]
+  photos      DeliveryPhoto[]
+  adjustments InvoiceAdjustment[]
+}
+
+model DeliveryReportItem {
+  id               String         @id @default(cuid())
+  deliveryReportId String
+  deliveryReport   DeliveryReport @relation(fields: [deliveryReportId], references: [id], onDelete: Cascade)
+  orderItemId      String
+  orderItem        OrderItem      @relation(fields: [orderItemId], references: [id])
+  expectedQty      Int
+  deliveredQty     Int
+  issue            String?        // MISSING | DAMAGED | WRONG_ITEM | OTHER
+  issueNotes       String?
+}
+
+model DeliveryPhoto {
+  id               String         @id @default(cuid())
+  deliveryReportId String
+  deliveryReport   DeliveryReport @relation(fields: [deliveryReportId], references: [id], onDelete: Cascade)
+  photoUrl         String
+  photoType        String         // SIGNED_INVOICE_DRIVER | SIGNED_INVOICE_CLIENT | DAMAGED_ITEM | OTHER
+  caption          String?
+  createdAt        DateTime       @default(now())
+}
+
+// ─── DELIVERY ROUTES ─────────────────────────────────────
+
+model DeliveryRoute {
+  id           String     @id @default(cuid())
+  date         DateTime
+  driverId     String
+  driver       User       @relation("RouteDriver", fields: [driverId], references: [id])
+  status       String     @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED
+  notes        String?
+  startAddress String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  stops        RouteStop[]
+
+  @@unique([driverId, date])
+}
+
+model RouteStop {
+  id        String         @id @default(cuid())
+  routeId   String
+  route     DeliveryRoute  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id])
+  stopOrder Int
+  status    String         @default("PENDING") // PENDING | EN_ROUTE | DELIVERED | SKIPPED
+  arrivedAt DateTime?
+  notes     String?
+}
+
+// ─── REFERRALS ───────────────────────────────────────────
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referrer     User     @relation("ReferrerUser", fields: [referrerId], references: [id])
+  referredId   String
+  referred     User     @relation("ReferredUser", fields: [referredId], references: [id])
+  status       String   @default("PENDING") // PENDING | COMPLETED | REWARDED
+  rewardPoints Int      @default(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([referrerId, referredId])
+}
+
+// ─── PRICE TIERS (VOLUME PRICING) ────────────────────────
+
+model PriceTier {
+  id          String   @id @default(cuid())
+  itemId      String
+  itemName    String
+  minQty      Int
+  unitPrice   Float
+  discountPct Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([itemId, minQty])
+}
+
+// ─── COUPONS ─────────────────────────────────────────────
+
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  description String?
+  type        String    // PERCENTAGE | FIXED
+  value       Float
+  minOrder    Float?
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  validFrom   DateTime  @default(now())
+  validUntil  DateTime?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orders Order[]
+}
+
+// ─── AUDIT LOG (IMMUTABLE) ──────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // CREATE | UPDATE | DELETE | STATUS_CHANGE | PAYMENT | ADJUSTMENT | DELIVERY_REPORT | LOGIN
+  entity    String   // User | Order | Invoice | OrderItem | DeliveryReport | InvoiceAdjustment
+  entityId  String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  metadata  String?  // JSON
+  createdAt DateTime @default(now())
+}

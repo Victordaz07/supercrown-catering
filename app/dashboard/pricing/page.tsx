@@ -1,344 +1,201 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Trash2,
-  DollarSign,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Pencil,
-  Check,
-  X,
-} from "lucide-react";
-import { getCurrentUser, getUserRole } from "@/lib/firebase/auth";
+import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { Plus, Trash2, DollarSign, ChevronDown, ChevronUp, Check, X, Loader2, Save } from "lucide-react";
 
-interface PriceTier {
+type PriceTier = {
   id: string;
   itemId: string;
   itemName: string;
   minQty: number;
   unitPrice: number;
-  discountPercent: number;
-}
+  discountPct: number;
+};
 
-const inputStyles =
-  "w-full rounded-lg border border-stone/40 bg-cream px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-terracotta/40";
+type GroupedTiers = Record<string, { name: string; tiers: PriceTier[] }>;
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-}
+type NewTierRow = { minQty: string; unitPrice: string; discountPct: string };
 
 export default function PricingPage() {
-  const router = useRouter();
-  const [tiers, setTiers] = useState<PriceTier[]>([]);
+  const { data: session } = useSession();
+  const [allTiers, setAllTiers] = useState<PriceTier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<string | null>(null);
-  const [roleChecked, setRoleChecked] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<{ minQty: string; unitPrice: string; discountPct: string }>({ minQty: "", unitPrice: "", discountPct: "" });
 
-  // Add Product form state
-  const [productName, setProductName] = useState("");
-  const [productId, setProductId] = useState("");
-  const [newTiers, setNewTiers] = useState<{ minQty: number; unitPrice: number; discountPercent: number }[]>([
-    { minQty: 1, unitPrice: 0, discountPercent: 0 },
-  ]);
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductId, setNewProductId] = useState("");
+  const [newRows, setNewRows] = useState<NewTierRow[]>([{ minQty: "1", unitPrice: "", discountPct: "0" }]);
+  const [showNewProduct, setShowNewProduct] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
 
-  // Edit state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Partial<PriceTier>>({});
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const allowed = session?.user?.role && ["MASTER", "ADMIN", "SALES"].includes(session.user.role);
 
-  const fetchTiers = useCallback(async () => {
+  const loadTiers = useCallback(async () => {
     try {
-      const res = await fetch("/api/price-tiers", { credentials: "include" });
-      if (res.status === 401) {
-        router.replace("/login");
-        return;
-      }
-      const data = await res.json();
-      setTiers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-      setTiers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+      const res = await fetch("/api/price-tiers");
+      if (res.ok) setAllTiers(await res.json());
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  useEffect(() => { loadTiers(); }, [loadTiers]);
 
-    const checkAuth = async () => {
-      const user = await getCurrentUser();
-      if (!mounted) return;
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      const r = await getUserRole(user);
-      if (!mounted) return;
-      setRole(r);
-      setRoleChecked(true);
-      if (r !== "admin" && r !== "sales") {
-        router.replace("/dashboard");
-        return;
-      }
-      await fetchTiers();
-    };
+  if (!allowed) {
+    return <div className="p-8 text-muted">Access denied.</div>;
+  }
 
-    checkAuth();
-    return () => {
-      mounted = false;
-    };
-  }, [router, fetchTiers]);
+  const grouped: GroupedTiers = {};
+  for (const t of allTiers) {
+    if (!grouped[t.itemId]) grouped[t.itemId] = { name: t.itemName, tiers: [] };
+    grouped[t.itemId].tiers.push(t);
+  }
+  for (const key of Object.keys(grouped)) {
+    grouped[key].tiers.sort((a, b) => a.minQty - b.minQty);
+  }
 
-  useEffect(() => {
-    setProductId(slugify(productName));
-  }, [productName]);
+  const toggle = (id: string) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
-  const addTierRow = () => {
-    setNewTiers((prev) => [...prev, { minQty: 1, unitPrice: 0, discountPercent: 0 }]);
+  const handleNameChange = (name: string) => {
+    setNewProductName(name);
+    setNewProductId(name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
   };
 
-  const updateNewTier = (index: number, field: "minQty" | "unitPrice" | "discountPercent", value: number) => {
-    setNewTiers((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
+  const addRow = () => setNewRows((p) => [...p, { minQty: "", unitPrice: "", discountPct: "0" }]);
+
+  const updateRow = (idx: number, field: keyof NewTierRow, val: string) => {
+    setNewRows((p) => { const n = [...p]; n[idx] = { ...n[idx], [field]: val }; return n; });
   };
 
-  const removeNewTierRow = (index: number) => {
-    setNewTiers((prev) => prev.filter((_, i) => i !== index));
-  };
+  const removeRow = (idx: number) => setNewRows((p) => p.filter((_, i) => i !== idx));
 
-  const saveAllTiers = async () => {
-    if (!productName.trim() || !productId.trim()) {
-      setSaveError("Product Name and Product ID are required");
-      return;
-    }
+  const saveNewProduct = async () => {
+    if (!newProductName.trim() || !newProductId.trim()) { setMsg("Product name required"); return; }
+    const valid = newRows.filter((r) => r.minQty && r.unitPrice);
+    if (valid.length === 0) { setMsg("Add at least one tier"); return; }
+
     setSaving(true);
-    setSaveError(null);
+    setMsg("");
     try {
-      for (const t of newTiers) {
+      for (const row of valid) {
         const res = await fetch("/api/price-tiers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
-            itemId: productId,
-            itemName: productName.trim(),
-            minQty: t.minQty,
-            unitPrice: t.unitPrice,
-            discountPercent: t.discountPercent,
+            itemId: newProductId,
+            itemName: newProductName,
+            minQty: parseInt(row.minQty),
+            unitPrice: parseFloat(row.unitPrice),
+            discountPct: parseFloat(row.discountPct) || 0,
           }),
         });
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to save tier");
+          const data = await res.json();
+          throw new Error(data.error || "Failed to create tier");
         }
       }
-      setProductName("");
-      setProductId("");
-      setNewTiers([{ minQty: 1, unitPrice: 0, discountPercent: 0 }]);
-      await fetchTiers();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to save");
+      setShowNewProduct(false);
+      setNewProductName("");
+      setNewProductId("");
+      setNewRows([{ minQty: "1", unitPrice: "", discountPct: "0" }]);
+      loadTiers();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Error");
     } finally {
       setSaving(false);
     }
   };
 
-  const startEdit = (tier: PriceTier) => {
-    setEditingId(tier.id);
-    setEditValues({
-      minQty: tier.minQty,
-      unitPrice: tier.unitPrice,
-      discountPercent: tier.discountPercent,
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditValues({});
+  const startEdit = (t: PriceTier) => {
+    setEditId(t.id);
+    setEditData({ minQty: String(t.minQty), unitPrice: String(t.unitPrice), discountPct: String(t.discountPct) });
   };
 
   const saveEdit = async () => {
-    if (!editingId) return;
-    try {
-      const res = await fetch(`/api/price-tiers/${editingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(editValues),
-      });
-      if (res.ok) {
-        setEditingId(null);
-        setEditValues({});
-        await fetchTiers();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to update");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update");
-    }
+    if (!editId) return;
+    await fetch(`/api/price-tiers/${editId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        minQty: parseInt(editData.minQty),
+        unitPrice: parseFloat(editData.unitPrice),
+        discountPct: parseFloat(editData.discountPct) || 0,
+      }),
+    });
+    setEditId(null);
+    loadTiers();
   };
 
   const deleteTier = async (id: string) => {
-    if (!confirm("Delete this price tier?")) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/price-tiers/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (res.ok) {
-        await fetchTiers();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to delete");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete");
-    } finally {
-      setDeletingId(null);
-    }
+    if (!confirm("Delete this tier?")) return;
+    await fetch(`/api/price-tiers/${id}`, { method: "DELETE" });
+    loadTiers();
   };
 
-  const groupedByProduct = tiers.reduce<Record<string, PriceTier[]>>((acc, t) => {
-    const key = `${t.itemName} (${t.itemId})`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(t);
-    acc[key].sort((a, b) => a.minQty - b.minQty);
-    return acc;
-  }, {});
-
-  if (!roleChecked || (role !== "admin" && role !== "sales")) {
-    return (
-      <div className="min-h-[200px] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-terracotta" />
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-terracotta" />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <DollarSign className="w-7 h-7 text-terracotta" />
-        <div>
-          <h1 className="font-display text-3xl text-dark">Price Tier Management</h1>
-          <p className="text-muted text-sm">Manage volume pricing tiers per product</p>
-        </div>
+    <div className="max-w-5xl">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="font-display text-2xl text-dark">Volume Pricing</h1>
+        {!showNewProduct && (
+          <button onClick={() => setShowNewProduct(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-terracotta text-cream rounded-lg hover:bg-terracotta/90 transition-all text-sm">
+            <Plus className="w-4 h-4" /> Add Product Pricing
+          </button>
+        )}
       </div>
 
-      {/* Add Product Pricing */}
-      <section className="bg-warm border border-stone/30 rounded-lg p-5">
-        <h2 className="font-display text-xl text-dark mb-4">Add Product Pricing</h2>
-        <div className="grid gap-4 sm:grid-cols-2 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-muted mb-1">Product Name</label>
-            <input
-              type="text"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="e.g. Yogurt Parfait"
-              className={inputStyles}
-            />
+      {/* New Product Form */}
+      {showNewProduct && (
+        <div className="bg-warm border border-stone/30 rounded-lg p-5 mb-6 space-y-4">
+          <h3 className="font-display text-lg text-dark">New Product Pricing</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted uppercase tracking-wider">Product Name *</label>
+              <input value={newProductName} onChange={(e) => handleNameChange(e.target.value)}
+                className="w-full mt-1 bg-cream border border-stone/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30"
+                placeholder="e.g. Yogurt Parfait" />
+            </div>
+            <div>
+              <label className="text-xs text-muted uppercase tracking-wider">Product ID</label>
+              <input value={newProductId} onChange={(e) => setNewProductId(e.target.value)}
+                className="w-full mt-1 bg-cream border border-stone/40 rounded-lg px-3 py-2 text-sm text-muted font-mono focus:outline-none"
+                placeholder="auto-generated" />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-muted mb-1">Product ID (auto-generated)</label>
-            <input
-              type="text"
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              placeholder="yogurt-parfait"
-              className={inputStyles}
-            />
-          </div>
-        </div>
 
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-dark">Tiers</span>
-            <button
-              type="button"
-              onClick={addTierRow}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-terracotta/20 text-terracotta text-sm font-medium hover:bg-terracotta/30 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add Tier
-            </button>
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-stone/30 bg-white">
-            <table className="w-full text-sm min-w-[400px]">
+          <div className="mt-4">
+            <p className="text-xs text-muted uppercase tracking-wider mb-2">Price Tiers</p>
+            <table className="w-full text-sm border border-stone/30 rounded-lg overflow-hidden">
               <thead>
-                <tr className="bg-stone/20 border-b border-stone/30">
-                  <th className="text-left px-4 py-2 font-medium text-dark">Min Qty</th>
-                  <th className="text-left px-4 py-2 font-medium text-dark">Unit Price</th>
-                  <th className="text-left px-4 py-2 font-medium text-dark">Discount %</th>
-                  <th className="w-10" />
+                <tr className="bg-stone/10">
+                  <th className="text-right p-2 font-medium w-28">Min Qty</th>
+                  <th className="text-right p-2 font-medium w-32">Unit Price ($)</th>
+                  <th className="text-right p-2 font-medium w-28">Discount %</th>
+                  <th className="p-2 w-10"></th>
                 </tr>
               </thead>
               <tbody>
-                {newTiers.map((t, i) => (
-                  <tr key={i} className="border-t border-stone/20">
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        min={1}
-                        value={t.minQty}
-                        onChange={(e) => updateNewTier(i, "minQty", Number(e.target.value) || 0)}
-                        className="w-20 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
+                {newRows.map((row, idx) => (
+                  <tr key={idx} className="border-t border-stone/20">
+                    <td className="p-2">
+                      <input type="number" min={1} value={row.minQty} onChange={(e) => updateRow(idx, "minQty", e.target.value)}
+                        className="w-full text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" />
                     </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={t.unitPrice || ""}
-                        onChange={(e) => updateNewTier(i, "unitPrice", Number(e.target.value) || 0)}
-                        className="w-24 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
+                    <td className="p-2">
+                      <input type="number" min={0} step={0.01} value={row.unitPrice} onChange={(e) => updateRow(idx, "unitPrice", e.target.value)}
+                        className="w-full text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" placeholder="0.00" />
                     </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={t.discountPercent || ""}
-                        onChange={(e) => updateNewTier(i, "discountPercent", Number(e.target.value) || 0)}
-                        className="w-20 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
+                    <td className="p-2">
+                      <input type="number" min={0} max={100} step={0.1} value={row.discountPct} onChange={(e) => updateRow(idx, "discountPct", e.target.value)}
+                        className="w-full text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" />
                     </td>
-                    <td className="px-2 py-2">
-                      {newTiers.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeNewTierRow(i)}
-                          className="p-1.5 text-muted hover:text-red-600 rounded transition-colors"
-                          aria-label="Remove tier"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                    <td className="p-2">
+                      {newRows.length > 1 && (
+                        <button onClick={() => removeRow(idx)} className="text-muted hover:text-red-600">
+                          <X className="w-4 h-4" />
                         </button>
                       )}
                     </td>
@@ -346,206 +203,108 @@ export default function PricingPage() {
                 ))}
               </tbody>
             </table>
+            <button onClick={addRow} className="mt-2 flex items-center gap-1 text-xs text-terracotta hover:underline">
+              <Plus className="w-3 h-3" /> Add tier row
+            </button>
+          </div>
+
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
+          <div className="flex gap-3">
+            <button onClick={saveNewProduct} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-dark text-cream rounded-lg hover:bg-dark/90 text-sm disabled:opacity-50">
+              <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save All Tiers"}
+            </button>
+            <button onClick={() => { setShowNewProduct(false); setMsg(""); }}
+              className="flex items-center gap-2 px-4 py-2 text-muted hover:text-dark text-sm">
+              <X className="w-4 h-4" /> Cancel
+            </button>
           </div>
         </div>
-        {saveError && (
-          <div className="mb-4 text-sm text-red-600 bg-red-50 px-4 py-2 rounded-lg">{saveError}</div>
-        )}
-        <button
-          type="button"
-          onClick={saveAllTiers}
-          disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-terracotta text-cream text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Save All
-        </button>
-      </section>
+      )}
 
-      {/* Existing tiers by product */}
-      <section>
-        <h2 className="font-display text-xl text-dark mb-4">Existing Product Pricing</h2>
-        {Object.keys(groupedByProduct).length === 0 ? (
-          <div className="bg-warm border border-stone/30 rounded-lg p-12 text-center">
-            <p className="text-muted">No price tiers yet. Add product pricing above.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {Object.entries(groupedByProduct).map(([label, productTiers]) => (
-              <ProductSection
-                key={label}
-                label={label}
-                tiers={productTiers}
-                editingId={editingId}
-                editValues={editValues}
-                setEditValues={setEditValues}
-                deletingId={deletingId}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onSaveEdit={saveEdit}
-                onDelete={deleteTier}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
+      {/* Existing Products */}
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted py-8"><Loader2 className="w-5 h-5 animate-spin" /> Loading...</div>
+      ) : Object.keys(grouped).length === 0 ? (
+        <div className="text-center py-12 text-muted">
+          <DollarSign className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p>No pricing tiers yet. Add your first product pricing.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {Object.entries(grouped).map(([itemId, { name, tiers }]) => (
+            <div key={itemId} className="bg-white border border-stone/30 rounded-lg overflow-hidden">
+              <button onClick={() => toggle(itemId)}
+                className="w-full flex items-center justify-between p-4 hover:bg-warm/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="w-5 h-5 text-terracotta" />
+                  <div className="text-left">
+                    <span className="font-display text-dark">{name}</span>
+                    <span className="ml-2 text-xs text-muted font-mono">{itemId}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">{tiers.length} tier{tiers.length !== 1 ? "s" : ""}</span>
+                  {expanded[itemId] ? <ChevronUp className="w-4 h-4 text-muted" /> : <ChevronDown className="w-4 h-4 text-muted" />}
+                </div>
+              </button>
 
-function ProductSection({
-  label,
-  tiers,
-  editingId,
-  editValues,
-  setEditValues,
-  deletingId,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onDelete,
-}: {
-  label: string;
-  tiers: PriceTier[];
-  editingId: string | null;
-  editValues: Partial<PriceTier>;
-  setEditValues: (v: Partial<PriceTier>) => void;
-  deletingId: string | null;
-  onStartEdit: (t: PriceTier) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: () => void;
-  onDelete: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="bg-white border border-stone/30 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-warm hover:bg-stone/10 transition-colors text-left"
-      >
-        <span className="font-display text-lg text-dark">{label}</span>
-        {open ? (
-          <ChevronUp className="w-5 h-5 text-muted" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-muted" />
-        )}
-      </button>
-      {open && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[480px]">
-            <thead>
-              <tr className="bg-stone/20 border-b border-stone/30">
-                <th className="text-left px-4 py-3 font-medium text-dark">Min Qty</th>
-                <th className="text-left px-4 py-3 font-medium text-dark">Unit Price</th>
-                <th className="text-left px-4 py-3 font-medium text-dark">Discount %</th>
-                <th className="text-right px-4 py-3 font-medium text-dark">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((tier) => (
-                <tr key={tier.id} className="border-t border-stone/20">
-                  <td className="px-4 py-3 text-dark">
-                    {editingId === tier.id ? (
-                      <input
-                        type="number"
-                        min={1}
-                        value={editValues.minQty ?? tier.minQty}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, minQty: Number(e.target.value) || 0 })
-                        }
-                        className="w-20 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
-                    ) : (
-                      tier.minQty
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-dark">
-                    {editingId === tier.id ? (
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={editValues.unitPrice ?? tier.unitPrice}
-                        onChange={(e) =>
-                          setEditValues({ ...editValues, unitPrice: Number(e.target.value) || 0 })
-                        }
-                        className="w-24 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
-                    ) : (
-                      `$${Number(tier.unitPrice).toFixed(2)}`
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-dark">
-                    {editingId === tier.id ? (
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={editValues.discountPercent ?? tier.discountPercent}
-                        onChange={(e) =>
-                          setEditValues({
-                            ...editValues,
-                            discountPercent: Number(e.target.value) || 0,
-                          })
-                        }
-                        className="w-20 rounded border border-stone/40 bg-cream px-2 py-1.5 text-sm"
-                      />
-                    ) : (
-                      `${tier.discountPercent}%`
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {editingId === tier.id ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={onSaveEdit}
-                          className="p-2 text-olive hover:bg-olive/10 rounded-lg transition-colors"
-                          aria-label="Save"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onCancelEdit}
-                          className="p-2 text-muted hover:bg-stone/20 rounded-lg transition-colors"
-                          aria-label="Cancel"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => onStartEdit(tier)}
-                          className="p-2 text-terracotta hover:bg-terracotta/10 rounded-lg transition-colors"
-                          aria-label="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(tier.id)}
-                          disabled={deletingId === tier.id}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                          aria-label="Delete"
-                        >
-                          {deletingId === tier.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+              {expanded[itemId] && (
+                <div className="border-t border-stone/20">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-stone/5">
+                        <th className="text-right p-3 font-medium">Min Qty</th>
+                        <th className="text-right p-3 font-medium">Unit Price</th>
+                        <th className="text-right p-3 font-medium">Discount</th>
+                        <th className="text-center p-3 font-medium w-24">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tiers.map((t) => (
+                        <tr key={t.id} className="border-t border-stone/10">
+                          {editId === t.id ? (
+                            <>
+                              <td className="p-2">
+                                <input type="number" value={editData.minQty} onChange={(e) => setEditData((p) => ({ ...p, minQty: e.target.value }))}
+                                  className="w-20 text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" />
+                              </td>
+                              <td className="p-2">
+                                <input type="number" step={0.01} value={editData.unitPrice} onChange={(e) => setEditData((p) => ({ ...p, unitPrice: e.target.value }))}
+                                  className="w-24 text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" />
+                              </td>
+                              <td className="p-2">
+                                <input type="number" step={0.1} value={editData.discountPct} onChange={(e) => setEditData((p) => ({ ...p, discountPct: e.target.value }))}
+                                  className="w-20 text-right bg-cream border border-stone/40 rounded px-2 py-1 focus:outline-none" />
+                              </td>
+                              <td className="p-2 text-center">
+                                <button onClick={saveEdit} className="p-1 text-olive hover:text-olive/80"><Check className="w-4 h-4" /></button>
+                                <button onClick={() => setEditId(null)} className="p-1 text-muted hover:text-dark"><X className="w-4 h-4" /></button>
+                              </td>
+                            </>
                           ) : (
-                            <Trash2 className="w-4 h-4" />
+                            <>
+                              <td className="p-3 text-right">{t.minQty}+</td>
+                              <td className="p-3 text-right font-medium">${t.unitPrice.toFixed(2)}</td>
+                              <td className="p-3 text-right">{t.discountPct > 0 ? <span className="text-olive">{t.discountPct}%</span> : <span className="text-muted">—</span>}</td>
+                              <td className="p-3 text-center">
+                                <button onClick={() => startEdit(t)} className="p-1 text-muted hover:text-dark" title="Edit">
+                                  <DollarSign className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => deleteTier(t.id)} className="p-1 text-muted hover:text-red-600" title="Delete">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </>
                           )}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -3,14 +3,16 @@ import type { CartItem } from "@/lib/cartStore";
 export interface EmailData {
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
   eventDate: string;
   guestCount: string;
   budget: string;
   eventDetails: string;
-  deliveryAddress?: string;
-  quoteId?: string;
   items: CartItem[];
   totalItems: number;
+  orderNumber?: string;
+  dashboardUrl?: string;
 }
 
 const BUDGET_LABELS: Record<string, string> = {
@@ -51,7 +53,6 @@ export function generateOwnerEmail(data: EmailData): string {
     <tr>
       <td style="background:#B5612A;padding:12px 32px;text-align:center;">
         <p style="margin:0;color:#fff;font-size:16px;font-weight:600;">You have a new catering quote request</p>
-        ${data.quoteId ? `<p style="margin:8px 0 0;color:#fff;font-size:14px;">Quote ID: <strong>${escapeHtml(data.quoteId)}</strong></p>` : ""}
       </td>
     </tr>
     <tr>
@@ -70,6 +71,14 @@ export function generateOwnerEmail(data: EmailData): string {
             <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(data.eventDate) || "—"}</td>
           </tr>
           <tr>
+            <td style="padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Phone</td>
+            <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(data.customerPhone || "") || "—"}</td>
+          </tr>
+          <tr>
+            <td style="padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Delivery Address</td>
+            <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(data.deliveryAddress || "") || "—"}</td>
+          </tr>
+          <tr>
             <td style="padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Guests</td>
             <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(data.guestCount) || "—"}</td>
           </tr>
@@ -77,12 +86,6 @@ export function generateOwnerEmail(data: EmailData): string {
             <td style="padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Budget</td>
             <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(formatBudget(data.budget))}</td>
           </tr>
-          ${data.deliveryAddress ? `
-          <tr>
-            <td style="padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Delivery Address</td>
-            <td style="padding:12px 16px;color:#2A2520;font-weight:bold;">${escapeHtml(data.deliveryAddress)}</td>
-          </tr>
-          ` : ""}
         </table>
 
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border:1px solid #C9BFA8;">
@@ -106,7 +109,8 @@ export function generateOwnerEmail(data: EmailData): string {
         ` : ""}
 
         <p style="margin-top:24px;">
-          <a href="mailto:${escapeHtml(data.customerEmail)}" style="display:inline-block;background:#B5612A;color:#fff;padding:12px 24px;text-decoration:none;font-weight:600;">Reply to Customer</a>
+          <a href="mailto:${escapeHtml(data.customerEmail)}" style="display:inline-block;background:#B5612A;color:#fff;padding:12px 24px;text-decoration:none;font-weight:600;margin-right:12px;">Reply to Customer</a>
+          ${data.dashboardUrl ? `<a href="${escapeHtml(data.dashboardUrl)}" style="display:inline-block;background:#2A2520;color:#fff;padding:12px 24px;text-decoration:none;font-weight:600;">View in Dashboard →</a>` : ""}
         </p>
       </td>
     </tr>
@@ -149,7 +153,6 @@ export function generateCustomerEmail(data: EmailData): string {
           <p style="margin:0 0 12px;color:#8A8070;font-size:11px;text-transform:uppercase;">Your request summary</p>
           <p style="margin:0 0 8px;color:#2A2520;"><strong>Event date:</strong> ${escapeHtml(data.eventDate) || "—"}</p>
           <p style="margin:0 0 8px;color:#2A2520;"><strong>Guests:</strong> ${escapeHtml(data.guestCount) || "—"}</p>
-          ${data.deliveryAddress ? `<p style="margin:0 0 8px;color:#2A2520;"><strong>Delivery address:</strong> ${escapeHtml(data.deliveryAddress)}</p>` : ""}
           <p style="margin:0 0 12px;color:#2A2520;"><strong>Items:</strong></p>
           <p style="margin:0;color:#2A2520;line-height:1.6;">${itemsList}</p>
         </div>

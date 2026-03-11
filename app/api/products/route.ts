@@ -1,96 +1,65 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { requireAdmin } from "@/lib/auth-server";
-import type { Product, ProductCreateInput } from "@/lib/product-types";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
-
-/** GET /api/products - Lists products (public). Returns only isAvailable: true if not admin. */
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const includeUnavailable = searchParams.get("includeUnavailable") === "true";
+  const { searchParams } = new URL(request.url);
+  const all = searchParams.get("all") === "true";
 
-    let isAdmin = false;
-    try {
-      await requireAdmin();
-      isAdmin = true;
-    } catch {
-      // Not admin, only available products
-    }
+  const where = all ? {} : { isAvailable: true };
 
-    const snapshot = await adminDb
-      .collection("products")
-      .orderBy("subcategory")
-      .orderBy("sortOrder")
-      .get();
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: [{ subcategory: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+  });
 
-    const products: Product[] = snapshot.docs.map((doc) => {
-      const d = doc.data();
-      const createdAt = d.createdAt?.toDate?.();
-      const updatedAt = d.updatedAt?.toDate?.();
-      return {
-        id: doc.id,
-        ...d,
-        createdAt,
-        updatedAt,
-      } as Product;
-    });
-
-    const filtered = isAdmin && includeUnavailable
-      ? products
-      : products.filter((p) => p.isAvailable !== false);
-
-    return NextResponse.json(filtered);
-  } catch (err) {
-    console.error("GET /api/products:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch products" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(products);
 }
 
-/** POST /api/products - Crear producto (admin) */
 export async function POST(request: Request) {
-  try {
-    await requireAdmin();
-  } catch {
+  const session = await getServerSession(authOptions);
+  if (!session || !["MASTER", "ADMIN"].includes(session.user.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const body = (await request.json()) as ProductCreateInput;
-    const id = body.id || body.name?.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || `product-${Date.now()}`;
+  const body = await request.json();
+  const { name, category, subcategory, description, shortDescription, ingredients, calories, allergens, isPopular, isVegetarian, imagePlaceholder, imageUrl, reviewText, reviewAuthor, reviewRating } = body;
 
-    const product = {
-      name: body.name ?? "",
-      category: body.category ?? "Box Lunch",
-      subcategory: body.subcategory ?? "Sandwiches",
-      description: body.description ?? "",
-      ingredients: Array.isArray(body.ingredients) ? body.ingredients : [],
-      shortDescription: body.shortDescription ?? body.name ?? "",
-      calories: Number(body.calories) || 0,
-      allergens: Array.isArray(body.allergens) ? body.allergens : [],
-      isPopular: Boolean(body.isPopular),
-      isVegetarian: Boolean(body.isVegetarian),
-      imagePlaceholder: body.imagePlaceholder ?? "#C9A07A",
-      imageUrl: body.imageUrl ?? null,
-      isAvailable: body.isAvailable !== false,
-      sortOrder: Number(body.sortOrder) ?? 0,
-      review: body.review ?? { text: "", author: "", rating: 5 },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await adminDb.collection("products").doc(id).set(product);
-
-    return NextResponse.json({ success: true, id });
-  } catch (err) {
-    console.error("POST /api/products:", err);
-    return NextResponse.json(
-      { error: "Failed to create product" },
-      { status: 500 }
-    );
+  if (!name?.trim() || !category?.trim() || !subcategory?.trim()) {
+    return NextResponse.json({ error: "Name, category, and subcategory are required" }, { status: 400 });
   }
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  const existing = await prisma.product.findUnique({ where: { slug } });
+  if (existing) {
+    return NextResponse.json({ error: "A product with this name/category already exists" }, { status: 409 });
+  }
+
+  const maxSort = await prisma.product.aggregate({ _max: { sortOrder: true }, where: { subcategory } });
+
+  const product = await prisma.product.create({
+    data: {
+      slug,
+      name: name.trim(),
+      category: category.trim(),
+      subcategory: subcategory.trim(),
+      description: description?.trim() || "",
+      shortDescription: shortDescription?.trim() || "",
+      ingredients: JSON.stringify(ingredients || []),
+      calories: parseInt(calories) || 0,
+      allergens: JSON.stringify(allergens || []),
+      isPopular: Boolean(isPopular),
+      isVegetarian: Boolean(isVegetarian),
+      imagePlaceholder: imagePlaceholder || "#C9A07A",
+      imageUrl: imageUrl || null,
+      sortOrder: (maxSort._max.sortOrder || 0) + 1,
+      reviewText: reviewText || null,
+      reviewAuthor: reviewAuthor || null,
+      reviewRating: parseInt(reviewRating) || 5,
+    },
+  });
+
+  return NextResponse.json(product, { status: 201 });
 }

@@ -1,611 +1,274 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  ClipboardCheck,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  ArrowUpCircle,
+  Truck,
+  Loader2,
   ChevronDown,
   ChevronUp,
-  Loader2,
+  AlertCircle,
+  CheckCircle2,
   X,
-  ImageIcon,
-  Filter,
 } from "lucide-react";
 
-type ReportStatus = "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "ESCALATED";
-
 type ReportItem = {
-  itemId: string;
-  productName: string;
+  id: string;
   expectedQty: number;
   deliveredQty: number;
-  issueType: string;
-  issueNotes: string;
+  issue: string | null;
+  issueNotes: string | null;
+  orderItem: { name: string; category: string };
 };
 
-type ReportPhoto = {
+type Photo = {
   id: string;
-  url: string;
+  photoUrl: string;
   photoType: string;
-  caption: string;
+  caption: string | null;
 };
 
-type DeliveryReport = {
+type Report = {
   id: string;
   orderId: string;
-  orderNumber: string;
-  driverName: string;
   receiverName: string;
-  createdAt: string;
-  status: ReportStatus;
+  status: string;
   hasIssues: boolean;
-  notes: string;
+  notes: string | null;
+  reviewNotes: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  driver: { name: string };
+  reviewedBy: { name: string } | null;
+  order: { orderNumber: string; customerName: string; invoices?: { id: string; invoiceNumber: string }[] };
   items: ReportItem[];
-  photos: ReportPhoto[];
-  reviewNotes?: string;
-  invoiceId?: string;
+  photos: Photo[];
 };
 
-const STATUS_CONFIG: Record<
-  ReportStatus,
-  { label: string; bg: string; text: string }
-> = {
-  PENDING_REVIEW: { label: "Pending", bg: "bg-yellow-100", text: "text-yellow-800" },
-  APPROVED: { label: "Approved", bg: "bg-olive/20", text: "text-olive" },
-  REJECTED: { label: "Rejected", bg: "bg-red-100", text: "text-red-700" },
-  ESCALATED: { label: "Escalated", bg: "bg-blue-100", text: "text-blue-800" },
+const STATUS_LABELS: Record<string, string> = {
+  PENDING_REVIEW: "Pending", APPROVED: "Approved", REJECTED: "Rejected", ESCALATED: "Escalated",
+};
+const STATUS_COLORS: Record<string, string> = {
+  PENDING_REVIEW: "bg-amber-100 text-amber-700", APPROVED: "bg-emerald-100 text-emerald-700",
+  REJECTED: "bg-red-100 text-red-700", ESCALATED: "bg-purple-100 text-purple-700",
 };
 
-const FILTER_OPTIONS: { value: ReportStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "PENDING_REVIEW", label: "Pending" },
-  { value: "APPROVED", label: "Approved" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "ESCALATED", label: "Escalated" },
-];
-
-export default function DeliveriesReviewPage() {
-  const [reports, setReports] = useState<DeliveryReport[]>([]);
+export default function DeliveriesPage() {
+  const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<ReportStatus | "ALL">("ALL");
+  const [filter, setFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [lightboxPhoto, setLightboxPhoto] = useState<ReportPhoto | null>(null);
-
-  const [reviewingId, setReviewingId] = useState<string | null>(null);
-  const [reviewStatus, setReviewStatus] = useState<ReportStatus>("APPROVED");
   const [reviewNotes, setReviewNotes] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
-  const [showAdjustForm, setShowAdjustForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [adjustForm, setAdjustForm] = useState(false);
   const [adjustReason, setAdjustReason] = useState("");
-  const [adjustAmounts, setAdjustAmounts] = useState<Record<string, number>>({});
+  const [adjustAmount, setAdjustAmount] = useState("");
 
-  useEffect(() => {
-    fetchReports();
-  }, [statusFilter]);
-
-  async function fetchReports() {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
-    try {
-      const query = statusFilter === "ALL" ? "" : `?status=${statusFilter}`;
-      const res = await fetch(`/api/deliveries${query}`);
-      if (!res.ok) throw new Error("Error loading reports");
-      const data = await res.json();
-      setReports(data.reports || []);
-    } catch {
-      setReports([]);
-    } finally {
-      setLoading(false);
+    const p = new URLSearchParams();
+    if (filter) p.set("status", filter);
+    const res = await fetch(`/api/deliveries?${p}`);
+    if (res.ok) setReports(await res.json());
+    setLoading(false);
+  }, [filter]);
+
+  useEffect(() => { fetchReports(); }, [fetchReports]);
+
+  async function handleReview(reportId: string, status: string) {
+    setSaving(true);
+    await fetch(`/api/deliveries/${reportId}/review`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, reviewNotes: reviewNotes || undefined }),
+    });
+
+    if (status === "APPROVED" && adjustForm && adjustReason.length >= 10) {
+      const report = reports.find((r) => r.id === reportId);
+      const invoiceId = report?.order?.invoices?.[0]?.id;
+      if (invoiceId) {
+        await fetch(`/api/invoices/${invoiceId}/adjust`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "CREDIT",
+            reason: adjustReason,
+            amount: -(Math.abs(parseFloat(adjustAmount) || 0)),
+            deliveryReportId: reportId,
+          }),
+        });
+      }
     }
+
+    setSaving(false);
+    setExpandedId(null);
+    setAdjustForm(false);
+    setAdjustReason("");
+    setAdjustAmount("");
+    setReviewNotes("");
+    fetchReports();
   }
 
-  const toggleExpand = (id: string) => {
-    if (expandedId === id) {
-      setExpandedId(null);
-      setReviewingId(null);
-      setShowAdjustForm(false);
-    } else {
-      setExpandedId(id);
-      setReviewingId(null);
-      setShowAdjustForm(false);
-    }
-  };
-
-  const startReview = (report: DeliveryReport) => {
-    setReviewingId(report.id);
-    setReviewStatus("APPROVED");
-    setReviewNotes("");
-    setReviewError(null);
-    setShowAdjustForm(false);
-    setAdjustReason("");
-    setAdjustAmounts({});
-  };
-
-  const handleReview = async (report: DeliveryReport, action: string) => {
-    setSubmittingReview(true);
-    setReviewError(null);
-
-    try {
-      const res = await fetch(`/api/deliveries/${report.id}/review`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: action === "APPROVE_ADJUST" ? "APPROVED" : action,
-          reviewNotes: reviewNotes.trim(),
-          hasAdjustment: action === "APPROVE_ADJUST",
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Error processing review");
-      }
-
-      if (action === "APPROVE_ADJUST" && report.invoiceId) {
-        const adjustItems = Object.entries(adjustAmounts)
-          .filter(([, amount]) => amount > 0)
-          .map(([itemId, amount]) => ({ itemId, amount }));
-
-        if (adjustItems.length > 0) {
-          await fetch(`/api/invoices/${report.invoiceId}/adjust`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              reason: adjustReason.trim(),
-              items: adjustItems,
-            }),
-          });
-        }
-      }
-
-      setReviewingId(null);
-      setShowAdjustForm(false);
-      fetchReports();
-    } catch (err) {
-      setReviewError(
-        err instanceof Error ? err.message : "Error submitting review"
-      );
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const issueLabel = (type: string) => {
-    const map: Record<string, string> = {
-      SIN_PROBLEMA: "No issue",
-      FALTANTE: "Missing",
-      DANADO: "Damaged",
-      PRODUCTO_EQUIVOCADO: "Wrong product",
-      OTRO: "Other",
-    };
-    return map[type] || type;
-  };
+  const filters = ["", "PENDING_REVIEW", "APPROVED", "REJECTED", "ESCALATED"];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl text-dark">
-            Delivery Reports
-          </h1>
-          <p className="text-muted text-sm mt-1">
-            {reports.length} report{reports.length !== 1 && "s"}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted" />
-          <div className="flex flex-wrap gap-1">
-            {FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setStatusFilter(opt.value)}
-                className={`px-3 py-1.5 rounded-sm text-xs font-medium transition-colors ${
-                  statusFilter === opt.value
-                    ? "bg-terracotta text-cream"
-                    : "bg-warm border border-stone/40 text-muted hover:text-dark"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div className="max-w-5xl mx-auto">
+      <div className="flex items-center gap-3 mb-8">
+        <Truck className="w-6 h-6 text-terracotta" />
+        <h1 className="font-display text-3xl text-dark">Delivery Reports</h1>
       </div>
 
-      {/* Content */}
+      {/* Filters */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {filters.map((f) => (
+          <button key={f || "all"} onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-xl text-sm transition-all ${filter === f ? "bg-dark text-cream" : "bg-warm text-muted hover:text-dark"}`}>
+            {f ? STATUS_LABELS[f] : "All"}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 text-muted animate-spin" />
-        </div>
+        <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-terracotta" /></div>
       ) : reports.length === 0 ? (
-        <div className="text-center py-16 bg-warm border border-stone/40 rounded-sm">
-          <ClipboardCheck className="w-12 h-12 text-stone mx-auto mb-3" />
-          <p className="font-display text-dark">No reports</p>
-          <p className="text-muted text-sm mt-1">
-            {statusFilter === "ALL"
-              ? "No delivery reports have been submitted yet"
-              : `No reports with status "${STATUS_CONFIG[statusFilter as ReportStatus]?.label}"`}
-          </p>
+        <div className="text-center py-20 text-muted">
+          <Truck className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <p>No reports</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {reports.map((report) => {
-            const statusCfg = STATUS_CONFIG[report.status] || STATUS_CONFIG.PENDING_REVIEW;
-            const isExpanded = expandedId === report.id;
-
+          {reports.map((r) => {
+            const isExpanded = expandedId === r.id;
             return (
-              <div
-                key={report.id}
-                className="bg-white border border-stone/40 rounded-sm shadow-sm overflow-hidden"
-              >
-                {/* Card Header */}
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(report.id)}
-                  className="w-full text-left p-4 hover:bg-warm/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-display text-base text-dark">
-                          Order #{report.orderNumber}
-                        </span>
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${statusCfg.bg} ${statusCfg.text}`}
-                        >
-                          {statusCfg.label}
-                        </span>
-                        {report.hasIssues ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                            <AlertCircle className="w-3 h-3" />
-                            Has issues
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-olive/20 text-olive">
-                            <CheckCircle2 className="w-3 h-3" />
-                            No issues
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-muted">
-                        <span>Driver: {report.driverName}</span>
-                        <span>Received by: {report.receiverName}</span>
-                      </div>
-                      <p className="text-xs text-muted mt-1">
-                        {formatDate(report.createdAt)}
-                      </p>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-muted shrink-0" />
+              <div key={r.id} className="bg-white border border-stone/20 rounded-xl shadow-sm overflow-hidden">
+                <button onClick={() => { setExpandedId(isExpanded ? null : r.id); setReviewNotes(""); setAdjustForm(false); }}
+                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-warm/30 transition-colors">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span className="font-medium text-dark">{r.order.orderNumber}</span>
+                    <span className="text-sm text-muted">{r.driver.name} → {r.receiverName}</span>
+                    <span className="text-xs text-muted">{new Date(r.createdAt).toLocaleDateString("en-US")}</span>
+                    {r.hasIssues ? (
+                      <span className="flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-lg">
+                        <AlertCircle className="w-3 h-3" /> With issues
+                      </span>
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-muted shrink-0" />
+                      <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg">
+                        <CheckCircle2 className="w-3 h-3" /> No issues
+                      </span>
                     )}
+                    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-medium ${STATUS_COLORS[r.status]}`}>
+                      {STATUS_LABELS[r.status]}
+                    </span>
                   </div>
+                  {isExpanded ? <ChevronUp className="w-5 h-5 text-muted" /> : <ChevronDown className="w-5 h-5 text-muted" />}
                 </button>
 
-                {/* Expanded Detail */}
                 {isExpanded && (
-                  <div className="border-t border-stone/20 p-4 space-y-5">
-                    {/* Items Table */}
-                    <div>
-                      <h3 className="font-display text-base text-dark mb-2">
-                        Product details
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-stone/10">
-                              <th className="text-left px-3 py-2 font-medium text-dark">
-                                Product
-                              </th>
-                              <th className="text-center px-3 py-2 font-medium text-dark">
-                                Expected
-                              </th>
-                              <th className="text-center px-3 py-2 font-medium text-dark">
-                                Delivered
-                              </th>
-                              <th className="text-left px-3 py-2 font-medium text-dark">
-                                Status
-                              </th>
-                              <th className="text-left px-3 py-2 font-medium text-dark">
-                                Notes
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {report.items.map((item, i) => {
-                              const hasIssue = item.issueType !== "SIN_PROBLEMA";
-                              const qtyMismatch = item.deliveredQty !== item.expectedQty;
-                              return (
-                                <tr
-                                  key={i}
-                                  className={`border-t border-stone/10 ${
-                                    hasIssue ? "bg-red-50/40" : ""
-                                  }`}
-                                >
-                                  <td className="px-3 py-2 text-dark">
-                                    {item.productName}
-                                  </td>
-                                  <td className="px-3 py-2 text-center text-muted">
-                                    {item.expectedQty}
-                                  </td>
-                                  <td
-                                    className={`px-3 py-2 text-center font-medium ${
-                                      qtyMismatch ? "text-red-600" : "text-olive"
-                                    }`}
-                                  >
-                                    {item.deliveredQty}
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <span
-                                      className={`text-xs font-medium ${
-                                        hasIssue ? "text-red-600" : "text-olive"
-                                      }`}
-                                    >
-                                      {issueLabel(item.issueType)}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2 text-xs text-muted">
-                                    {item.issueNotes || "—"}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                  <div className="px-5 pb-5 border-t border-stone/10 space-y-4">
+                    {/* Items table */}
+                    <div className="overflow-x-auto mt-4">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-warm/40">
+                            <th className="text-left px-3 py-2 font-medium text-muted">Product</th>
+                            <th className="text-center px-3 py-2 font-medium text-muted">Expected</th>
+                            <th className="text-center px-3 py-2 font-medium text-muted">Delivered</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted">Status</th>
+                            <th className="text-left px-3 py-2 font-medium text-muted">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {r.items.map((item) => {
+                            const bad = item.deliveredQty < item.expectedQty || item.issue;
+                            return (
+                              <tr key={item.id} className={bad ? "bg-red-50" : ""}>
+                                <td className="px-3 py-2">{item.orderItem.name}</td>
+                                <td className="px-3 py-2 text-center">{item.expectedQty}</td>
+                                <td className={`px-3 py-2 text-center font-medium ${bad ? "text-red-600" : "text-dark"}`}>{item.deliveredQty}</td>
+                                <td className="px-3 py-2 text-xs">{item.issue ?? "OK"}</td>
+                                <td className="px-3 py-2 text-xs text-muted">{item.issueNotes ?? "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* Driver Notes */}
-                    {report.notes && (
-                      <div>
-                        <h3 className="font-display text-base text-dark mb-1">
-                          Driver notes
-                        </h3>
-                        <p className="text-sm text-muted bg-warm border border-stone/30 rounded-sm p-3">
-                          {report.notes}
-                        </p>
+                    {r.notes && (
+                      <div className="p-3 bg-warm rounded-xl text-sm">
+                        <span className="text-xs uppercase text-muted block mb-1">Driver notes</span>
+                        {r.notes}
                       </div>
                     )}
 
-                    {/* Photos Gallery */}
-                    {report.photos && report.photos.length > 0 && (
+                    {/* Photos */}
+                    {r.photos.length > 0 && (
                       <div>
-                        <h3 className="font-display text-base text-dark mb-2">
-                          Photo evidence
-                        </h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {report.photos.map((photo) => (
-                            <button
-                              key={photo.id}
-                              type="button"
-                              onClick={() => setLightboxPhoto(photo)}
-                              className="relative group aspect-square rounded-sm overflow-hidden border border-stone/40"
-                            >
-                              <img
-                                src={photo.url}
-                                alt={photo.caption}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-dark/70 to-transparent p-1.5">
-                                <p className="text-[10px] text-cream truncate">
-                                  {photo.caption}
-                                </p>
-                              </div>
+                        <span className="text-xs uppercase text-muted block mb-2">Photo evidence</span>
+                        <div className="flex gap-2 flex-wrap">
+                          {r.photos.map((p) => (
+                            <button key={p.id} onClick={() => setLightbox(p.photoUrl)}
+                              className="relative w-20 h-20 rounded-xl overflow-hidden border border-stone/20 hover:border-terracotta transition-colors">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={p.photoUrl} alt={p.photoType} className="w-full h-full object-cover" />
+                              <span className="absolute bottom-0 left-0 right-0 bg-dark/60 text-cream text-[9px] px-1 py-0.5 truncate">
+                                {p.photoType.replace(/_/g, " ")}
+                              </span>
                             </button>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {report.photos?.length === 0 && (
-                      <div className="flex items-center gap-2 text-sm text-muted py-2">
-                        <ImageIcon className="w-4 h-4" />
-                        <span>No photos attached</span>
+                    {/* Review section */}
+                    {r.status === "PENDING_REVIEW" && (
+                      <div className="border-t border-stone/10 pt-4 space-y-3">
+                        <span className="text-xs uppercase text-muted block">Review</span>
+                        <textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)}
+                          placeholder="Review notes (optional)..."
+                          className="w-full px-3 py-2 bg-cream border border-stone/40 rounded-xl text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+
+                        {r.hasIssues && (
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={adjustForm} onChange={(e) => setAdjustForm(e.target.checked)} className="rounded" />
+                            Approve with invoice adjustment (credit note)
+                          </label>
+                        )}
+
+                        {adjustForm && (
+                          <div className="bg-white border border-stone/20 rounded-xl p-3 space-y-2">
+                            <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)}
+                              placeholder="Reason for adjustment (min. 10 characters)..."
+                              className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                            <input type="number" step="0.01" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)}
+                              placeholder="Amount to deduct (e.g.: 25.50)"
+                              className="w-full px-3 py-2 border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 flex-wrap">
+                          <button onClick={() => handleReview(r.id, "APPROVED")} disabled={saving}
+                            className="bg-olive text-cream px-4 py-2 rounded-xl text-sm hover:bg-olive/90 disabled:opacity-50 transition-all">
+                            {adjustForm ? "Approve with adjustment" : "Approve"}
+                          </button>
+                          <button onClick={() => handleReview(r.id, "REJECTED")} disabled={saving}
+                            className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 transition-all">
+                            Reject
+                          </button>
+                          <button onClick={() => handleReview(r.id, "ESCALATED")} disabled={saving}
+                            className="bg-purple-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-all">
+                            Escalate to Master
+                          </button>
+                        </div>
                       </div>
                     )}
 
-                    {/* Review Section */}
-                    <div className="border-t border-stone/20 pt-4">
-                      <h3 className="font-display text-base text-dark mb-3">
-                        Review
-                      </h3>
-
-                      {report.status !== "PENDING_REVIEW" && report.reviewNotes && (
-                        <div className="bg-warm border border-stone/30 rounded-sm p-3 mb-3">
-                          <p className="text-xs text-muted mb-1">
-                            Review notes:
-                          </p>
-                          <p className="text-sm text-dark">
-                            {report.reviewNotes}
-                          </p>
-                        </div>
-                      )}
-
-                      {report.status === "PENDING_REVIEW" && (
-                        <>
-                          {reviewingId !== report.id ? (
-                            <button
-                              onClick={() => startReview(report)}
-                              className="px-4 py-2 bg-terracotta text-cream rounded-sm text-sm font-medium hover:bg-terracotta/90"
-                            >
-                              Review report
-                            </button>
-                          ) : (
-                            <div className="space-y-3">
-                              {reviewError && (
-                                <div className="bg-red-50 text-red-700 px-3 py-2 rounded-sm text-sm">
-                                  {reviewError}
-                                </div>
-                              )}
-
-                              <div>
-                                <label className="block text-sm text-dark mb-1">
-                                  Review notes
-                                </label>
-                                <textarea
-                                  value={reviewNotes}
-                                  onChange={(e) =>
-                                    setReviewNotes(e.target.value)
-                                  }
-                                  placeholder="Comments about the review..."
-                                  rows={2}
-                                  className="w-full bg-cream border border-stone/40 rounded-sm px-3 py-2 text-sm resize-none focus:outline-none focus:border-terracotta"
-                                />
-                              </div>
-
-                              {/* Adjust Form */}
-                              {showAdjustForm && (
-                                <div className="bg-warm border border-stone/40 rounded-sm p-3 space-y-3">
-                                  <h4 className="text-sm font-medium text-dark">
-                                    Credit note
-                                  </h4>
-                                  <div>
-                                    <label className="block text-xs text-muted mb-1">
-                                      Adjustment reason
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={adjustReason}
-                                      onChange={(e) =>
-                                        setAdjustReason(e.target.value)
-                                      }
-                                      placeholder="E.g.: Product damaged in transit"
-                                      className="w-full bg-cream border border-stone/40 rounded-sm px-2 py-1.5 text-sm focus:outline-none focus:border-terracotta"
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    {report.items
-                                      .filter(
-                                        (item) =>
-                                          item.issueType !== "SIN_PROBLEMA" ||
-                                          item.deliveredQty !== item.expectedQty
-                                      )
-                                      .map((item) => (
-                                        <div
-                                          key={item.itemId}
-                                          className="flex items-center justify-between gap-2"
-                                        >
-                                          <span className="text-sm text-dark truncate flex-1">
-                                            {item.productName}
-                                          </span>
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-xs text-muted">
-                                              $
-                                            </span>
-                                            <input
-                                              type="number"
-                                              min="0"
-                                              step="0.01"
-                                              value={
-                                                adjustAmounts[item.itemId] || ""
-                                              }
-                                              onChange={(e) =>
-                                                setAdjustAmounts((prev) => ({
-                                                  ...prev,
-                                                  [item.itemId]:
-                                                    parseFloat(e.target.value) || 0,
-                                                }))
-                                              }
-                                              placeholder="0.00"
-                                              className="w-24 bg-cream border border-stone/40 rounded-sm px-2 py-1 text-sm text-right focus:outline-none focus:border-terracotta"
-                                            />
-                                          </div>
-                                        </div>
-                                      ))}
-                                    {report.items.every(
-                                      (item) =>
-                                        item.issueType === "SIN_PROBLEMA" &&
-                                        item.deliveredQty === item.expectedQty
-                                    ) && (
-                                      <p className="text-sm text-muted">
-                                        No products with issues
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  onClick={() =>
-                                    handleReview(report, "APPROVED")
-                                  }
-                                  disabled={submittingReview}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-olive text-cream rounded-sm text-sm font-medium hover:bg-olive/90 disabled:opacity-70"
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (!showAdjustForm) {
-                                      setShowAdjustForm(true);
-                                    } else {
-                                      handleReview(report, "APPROVE_ADJUST");
-                                    }
-                                  }}
-                                  disabled={submittingReview}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-yellow-600 text-cream rounded-sm text-sm font-medium hover:bg-yellow-700 disabled:opacity-70"
-                                >
-                                  <AlertCircle className="w-4 h-4" />
-                                  {showAdjustForm
-                                    ? "Confirm adjustment"
-                                    : "Approve with adjustment"}
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleReview(report, "REJECTED")
-                                  }
-                                  disabled={submittingReview}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-300 text-red-700 rounded-sm text-sm font-medium hover:bg-red-50 disabled:opacity-70"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                  Reject
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleReview(report, "ESCALATED")
-                                  }
-                                  disabled={submittingReview}
-                                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-blue-300 text-blue-700 rounded-sm text-sm font-medium hover:bg-blue-50 disabled:opacity-70"
-                                >
-                                  <ArrowUpCircle className="w-4 h-4" />
-                                  Escalate
-                                </button>
-                              </div>
-
-                              {submittingReview && (
-                                <div className="flex items-center gap-2 text-sm text-muted">
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Processing...
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    {r.reviewedBy && (
+                      <div className="p-3 bg-warm rounded-xl text-sm">
+                        <span className="text-xs uppercase text-muted block mb-1">Reviewed by {r.reviewedBy.name}</span>
+                        {r.reviewNotes ?? "No notes"}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -615,31 +278,11 @@ export default function DeliveriesReviewPage() {
       )}
 
       {/* Lightbox */}
-      {lightboxPhoto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-dark/80 p-4"
-          onClick={() => setLightboxPhoto(null)}
-        >
-          <div
-            className="relative max-w-2xl w-full animate-modal-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setLightboxPhoto(null)}
-              className="absolute -top-3 -right-3 w-8 h-8 bg-cream rounded-full flex items-center justify-center shadow-lg hover:bg-warm z-10"
-            >
-              <X className="w-4 h-4 text-dark" />
-            </button>
-            <img
-              src={lightboxPhoto.url}
-              alt={lightboxPhoto.caption}
-              className="w-full rounded-sm shadow-2xl"
-            />
-            <p className="text-center text-cream text-sm mt-3">
-              {lightboxPhoto.caption}
-            </p>
-          </div>
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-dark/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
+          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-cream"><X className="w-8 h-8" /></button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="Evidence" className="max-w-full max-h-[90vh] rounded-xl" />
         </div>
       )}
     </div>

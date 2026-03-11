@@ -1,84 +1,94 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
-import { requireAdminOrSales } from "@/lib/auth-server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
-export const dynamic = "force-dynamic";
+const ALLOWED_ROLES_CREATE_UPDATE = ["MASTER", "ADMIN", "SALES"] as const;
+const ALLOWED_ROLES_DELETE = ["MASTER", "ADMIN"] as const;
 
-/** PATCH /api/price-tiers/[id] - Update a price tier (admin/sales) */
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdminOrSales();
-  } catch {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (!session || !ALLOWED_ROLES_CREATE_UPDATE.includes(session.user.role as (typeof ALLOWED_ROLES_CREATE_UPDATE)[number])) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;
+
+  const existing = await prisma.priceTier.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Price tier not found" }, { status: 404 });
+  }
+
+  const body = await request.json();
+  const { minQty, unitPrice, discountPct, itemName } = body as {
+    minQty?: number;
+    unitPrice?: number;
+    discountPct?: number;
+    itemName?: string;
+  };
+
+  const data: Record<string, unknown> = {};
+
+  if (minQty !== undefined) {
+    if (typeof minQty !== "number" || minQty < 0) {
+      return NextResponse.json({ error: "minQty must be a non-negative number" }, { status: 400 });
+    }
+    data.minQty = minQty;
+  }
+  if (unitPrice !== undefined) {
+    if (typeof unitPrice !== "number" || unitPrice < 0) {
+      return NextResponse.json({ error: "unitPrice must be a non-negative number" }, { status: 400 });
+    }
+    data.unitPrice = unitPrice;
+  }
+  if (discountPct !== undefined) {
+    const discount = Number(discountPct);
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      return NextResponse.json({ error: "discountPct must be between 0 and 100" }, { status: 400 });
+    }
+    data.discountPct = discount;
+  }
+  if (itemName !== undefined) {
+    data.itemName = String(itemName).trim();
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
   try {
-    const { id } = await params;
-    const body = await request.json();
-
-    const updates: Record<string, unknown> = {};
-    if (body.itemId !== undefined) updates.itemId = String(body.itemId).trim();
-    if (body.itemName !== undefined) updates.itemName = String(body.itemName).trim();
-    if (body.minQty !== undefined) updates.minQty = Number(body.minQty);
-    if (body.unitPrice !== undefined) updates.unitPrice = Number(body.unitPrice);
-    if (body.discountPercent !== undefined) updates.discountPercent = Number(body.discountPercent);
-
-    if (Object.keys(updates).length === 0) {
+    const updated = await prisma.priceTier.update({
+      where: { id },
+      data,
+    });
+    return NextResponse.json(updated);
+  } catch (e) {
+    const prismaError = e as { code?: string };
+    if (prismaError.code === "P2002") {
       return NextResponse.json(
-        { error: "No valid fields to update" },
-        { status: 400 }
+        { error: "A price tier already exists for this item with the same minQty" },
+        { status: 409 },
       );
     }
-
-    const ref = adminDb.collection("priceTiers").doc(id);
-    const doc = await ref.get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: "Price tier not found" }, { status: 404 });
-    }
-
-    await ref.update(updates);
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("PATCH /api/price-tiers/[id]:", err);
-    return NextResponse.json(
-      { error: "Failed to update price tier" },
-      { status: 500 }
-    );
+    throw e;
   }
 }
 
-/** DELETE /api/price-tiers/[id] - Delete a price tier (admin/sales) */
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdminOrSales();
-  } catch {
+export async function DELETE(request: Request, { params }: RouteContext) {
+  const session = await getServerSession(authOptions);
+  if (!session || !ALLOWED_ROLES_DELETE.includes(session.user.role as (typeof ALLOWED_ROLES_DELETE)[number])) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { id } = await params;
+  const { id } = await params;
 
-    const ref = adminDb.collection("priceTiers").doc(id);
-    const doc = await ref.get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: "Price tier not found" }, { status: 404 });
-    }
-
-    await ref.delete();
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("DELETE /api/price-tiers/[id]:", err);
-    return NextResponse.json(
-      { error: "Failed to delete price tier" },
-      { status: 500 }
-    );
+  const existing = await prisma.priceTier.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "Price tier not found" }, { status: 404 });
   }
+
+  await prisma.priceTier.delete({ where: { id } });
+  return NextResponse.json({ success: true });
 }
