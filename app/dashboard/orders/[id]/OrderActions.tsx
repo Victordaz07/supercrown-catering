@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Save, FileText, Tag, Percent, DollarSign } from "lucide-react";
+import { Plus, Trash2, Save, FileText, Tag, Percent, DollarSign, Sparkles } from "lucide-react";
 
 type Item = {
   id: string;
@@ -438,6 +438,14 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
         </div>
       </div>
 
+      {/* Upsell Suggestions */}
+      {editable && <UpsellSuggestions items={items} tiers={tiers} onAdd={(name, category, qty) => {
+        const itemId = name.toLowerCase().replace(/\s+/g, "-");
+        const tier = getTierPrice(itemId, qty);
+        const newItem: Item = { id: `new-${Date.now()}`, itemId, name, category, quantity: qty, unitPrice: tier?.price || 0 };
+        setItems((prev) => [...prev, newItem]);
+      }} />}
+
       {/* Notes */}
       <div>
         <label className="text-xs text-muted uppercase tracking-wider">Internal Notes</label>
@@ -496,6 +504,75 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
         {initialOrder.status === "DELIVERED" && (
           <p className="text-sm text-olive py-2">&#10003; Delivered</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+const UPSELL_MAP: Record<string, Array<{ name: string; category: string; reason: string }>> = {
+  "Box Lunch": [
+    { name: "Bottled Water", category: "Beverages", reason: "Popular pairing with box lunches" },
+    { name: "Cookie Assortment", category: "Desserts", reason: "Sweet finish for lunch events" },
+    { name: "Fresh Fruit Cup", category: "Grab-N-Go", reason: "Healthy complement" },
+  ],
+  "Grab-N-Go": [
+    { name: "Coffee Service", category: "Beverages", reason: "Most requested with grab-n-go" },
+    { name: "Yogurt Parfait", category: "Grab-N-Go", reason: "Popular add-on for breakfast events" },
+  ],
+  "Beverages": [
+    { name: "Pastry Platter", category: "Grab-N-Go", reason: "Perfect with beverages" },
+  ],
+  "Desserts": [
+    { name: "Coffee Service", category: "Beverages", reason: "Pairs well with desserts" },
+  ],
+  "Custom": [
+    { name: "Utensil Kit", category: "Supplies", reason: "Essential for custom catering" },
+    { name: "Napkin Bundle", category: "Supplies", reason: "Often needed for events" },
+  ],
+};
+
+function UpsellSuggestions({ items, tiers, onAdd }: {
+  items: Item[];
+  tiers: PriceTier[];
+  onAdd: (name: string, category: string, qty: number) => void;
+}) {
+  const categories = Array.from(new Set(items.map((i) => i.category)));
+  const existingNames = new Set(items.map((i) => i.name.toLowerCase()));
+
+  const suggestions: Array<{ name: string; category: string; reason: string; price: number }> = [];
+
+  for (const cat of categories) {
+    const mapped = UPSELL_MAP[cat] || [];
+    for (const s of mapped) {
+      if (existingNames.has(s.name.toLowerCase())) continue;
+      if (suggestions.find((x) => x.name === s.name)) continue;
+      const itemId = s.name.toLowerCase().replace(/\s+/g, "-");
+      const tier = tiers.filter((t) => t.itemId === itemId).sort((a, b) => a.minQty - b.minQty)[0];
+      suggestions.push({ ...s, price: tier?.unitPrice || 0 });
+    }
+  }
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="bg-amber-50/60 border border-amber-200/60 rounded-lg p-4">
+      <h3 className="text-xs uppercase tracking-wider text-amber-700 mb-3 flex items-center gap-1.5">
+        <Sparkles className="w-3.5 h-3.5" /> Suggested Add-ons
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {suggestions.slice(0, 4).map((s) => (
+          <div key={s.name} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-100">
+            <div>
+              <p className="text-sm font-medium text-dark">{s.name}</p>
+              <p className="text-[11px] text-muted">{s.reason}</p>
+              {s.price > 0 && <p className="text-[11px] text-terracotta">from ${s.price.toFixed(2)}/unit</p>}
+            </div>
+            <button onClick={() => onAdd(s.name, s.category, 1)}
+              className="ml-2 p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded transition-colors flex-shrink-0">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

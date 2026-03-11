@@ -21,13 +21,24 @@ model User {
   createdById      String?
   createdBy    User?    @relation("CreatedByUser", fields: [createdById], references: [id])
   createdUsers User[]   @relation("CreatedByUser")
+
+  // Loyalty & Scoring
+  referralCode String?  @unique
+  loyaltyPoints Int     @default(0)
+  loyaltyTier   String  @default("BRONZE") // BRONZE | SILVER | GOLD | PLATINUM
+  totalSpent    Float   @default(0)
+  totalOrders   Int     @default(0)
+  leadScore     Int     @default(0)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  auditLogs          AuditLog[]
-  driverReports      DeliveryReport[]    @relation("DriverReports")
-  reviewedReports    DeliveryReport[]    @relation("ReviewedReports")
+  auditLogs           AuditLog[]
+  driverReports       DeliveryReport[]    @relation("DriverReports")
+  reviewedReports     DeliveryReport[]    @relation("ReviewedReports")
   approvedAdjustments InvoiceAdjustment[] @relation("ApprovedAdjustments")
+  referralsMade       Referral[]          @relation("ReferrerUser")
+  referralsReceived   Referral[]          @relation("ReferredUser")
 }
 
 // ─── ORDERS ──────────────────────────────────────────────
@@ -157,6 +168,22 @@ model DeliveryPhoto {
   photoType        String         // SIGNED_INVOICE_DRIVER | SIGNED_INVOICE_CLIENT | DAMAGED_ITEM | OTHER
   caption          String?
   createdAt        DateTime       @default(now())
+}
+
+// ─── REFERRALS ───────────────────────────────────────────
+
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referrer     User     @relation("ReferrerUser", fields: [referrerId], references: [id])
+  referredId   String
+  referred     User     @relation("ReferredUser", fields: [referredId], references: [id])
+  status       String   @default("PENDING") // PENDING | COMPLETED | REWARDED
+  rewardPoints Int      @default(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([referrerId, referredId])
 }
 
 // ─── PRICE TIERS (VOLUME PRICING) ────────────────────────

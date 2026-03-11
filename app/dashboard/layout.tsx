@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
-import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag } from "lucide-react";
+import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag, Gift } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -12,12 +12,12 @@ export default async function DashboardLayout({
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
-  if (session.user.role === "CLIENT") redirect("/");
 
   const role = session.user.role;
   const isMasterOrAdmin = role === "MASTER" || role === "ADMIN";
   const isSalesOrAbove = isMasterOrAdmin || role === "SALES";
   const isDelivery = role === "DELIVERY";
+  const isClient = role === "CLIENT";
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -78,6 +78,12 @@ export default async function DashboardLayout({
             <Link href="/dashboard/users"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
               <Users className="w-4 h-4" /> Team
+            </Link>
+          )}
+          {(isClient || isSalesOrAbove) && (
+            <Link href="/dashboard/loyalty"
+              className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
+              <Gift className="w-4 h-4" /> Loyalty
             </Link>
           )}
           {isMasterOrAdmin && (
