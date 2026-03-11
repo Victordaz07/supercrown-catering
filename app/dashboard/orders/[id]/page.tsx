@@ -15,17 +15,30 @@ export default async function OrderDetailPage({
   });
   if (!order) notFound();
 
+  const serialized = {
+    ...order,
+    eventDate: order.eventDate.toISOString(),
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    invoices: order.invoices.map((inv) => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      pdfPathDriver: inv.pdfPathDriver,
+      pdfPathClient: inv.pdfPathClient,
+    })),
+  };
+
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <Link href="/dashboard/orders" className="text-terracotta hover:underline text-sm mb-4 inline-block">
-        ← Back to orders
+        &larr; Back to orders
       </Link>
       <div className="bg-white border border-stone/30 rounded-lg p-6">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="font-display text-2xl text-dark">{order.orderNumber}</h1>
             <p className="text-muted text-sm">
-              {new Date(order.createdAt).toLocaleString()}
+              {new Date(order.createdAt).toLocaleString("en-US")}
             </p>
           </div>
           <span
@@ -36,6 +49,8 @@ export default async function OrderDetailPage({
                 ? "bg-olive/20 text-olive"
                 : order.status === "READY"
                 ? "bg-blue-100 text-blue-800"
+                : order.status === "DELIVERED"
+                ? "bg-olive/15 text-olive"
                 : "bg-stone/20 text-muted"
             }`}
           >
@@ -56,33 +71,10 @@ export default async function OrderDetailPage({
             <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Delivery</h3>
             <p className="text-dark">{order.deliveryAddress}</p>
             <p className="text-sm text-muted mt-1">
-              {new Date(order.eventDate).toLocaleDateString()}
+              {new Date(order.eventDate).toLocaleDateString("en-US")}
               {order.guestCount && ` · ${order.guestCount} guests`}
             </p>
           </div>
-        </div>
-
-        <div className="mb-6">
-          <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Items</h3>
-          <table className="w-full border border-stone/30 rounded overflow-hidden">
-            <thead>
-              <tr className="bg-stone/10">
-                <th className="text-left p-3 text-sm font-medium">Item</th>
-                <th className="text-left p-3 text-sm font-medium">Category</th>
-                <th className="text-right p-3 text-sm font-medium">Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.items.map((item) => (
-                <tr key={item.id} className="border-t border-stone/20">
-                  <td className="p-3">{item.name}</td>
-                  <td className="p-3 text-muted text-sm">{item.category}</td>
-                  <td className="p-3 text-right">{item.quantity}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-sm text-muted mt-2">Total: {order.totalItems} items</p>
         </div>
 
         {order.invoices.length > 0 && (
@@ -100,7 +92,7 @@ export default async function OrderDetailPage({
                   {inv.pdfPathClient && (
                     <a href={inv.pdfPathClient} target="_blank" rel="noopener noreferrer"
                       className="inline-block px-4 py-2 bg-olive text-cream rounded hover:bg-olive/90 text-sm">
-                      {inv.invoiceNumber} (Cliente)
+                      {inv.invoiceNumber} (Client)
                     </a>
                   )}
                 </div>
@@ -116,7 +108,7 @@ export default async function OrderDetailPage({
           </div>
         )}
 
-        <OrderActions order={order} />
+        <OrderActions order={serialized} />
       </div>
     </div>
   );

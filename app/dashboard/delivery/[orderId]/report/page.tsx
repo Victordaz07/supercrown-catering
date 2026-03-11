@@ -188,7 +188,7 @@ export default function DeliveryReportPage() {
 
       {/* Receiver */}
       <div className="mb-5">
-        <label className="block text-xs uppercase tracking-wider text-muted mb-1">Receiver's name</label>
+        <label className="block text-xs uppercase tracking-wider text-muted mb-1">Receiver&apos;s name</label>
         <input value={receiverName} onChange={(e) => setReceiverName(e.target.value)}
           placeholder="Full name"
           className="w-full px-4 py-3 bg-cream border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
