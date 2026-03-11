@@ -63,6 +63,7 @@ interface UnassignedOrder {
   eventDate: string;
   totalItems: number;
   status: string;
+  driverId?: string | null;
 }
 
 function buildMultiStopUrl(stops: RouteStop[], startAddress?: string | null): string {
