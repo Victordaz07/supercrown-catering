@@ -90,6 +90,10 @@ This is not just an internal dashboard. It is an operational command center that
 - Driver assignment and stop ordering
 - Daily route execution view for drivers
 - Google Maps route links (single-stop and multi-stop)
+- Route intelligence assistant for sales before assignment
+- Vehicle recommendation based on stops, load, and cooling needs
+- Hybrid decision model: system suggests, operations confirms manually
+- Refrigeration rule support (short nearby routes vs >10 mile routes)
 
 ## Delivery Verification and Post-Delivery Review
 - Delivery report submission
@@ -125,11 +129,12 @@ This is not just an internal dashboard. It is an operational command center that
 1. A quote/order is created or updated.
 2. Pricing is validated (tiers, suggestions, discounts, coupons).
 3. Order is confirmed and prepared.
-4. Route and driver are assigned.
-5. Driver executes stops and records outcomes.
-6. Delivery results are reviewed and adjustments are handled if needed.
-7. Finance tracks invoice lifecycle and payment status.
-8. Leadership can audit every key action in one place.
+4. Sales analyzes route and receives suggested vehicle capacity/cooling match.
+5. Route and driver are assigned (with suggested or manual vehicle override).
+6. Driver executes stops and records outcomes.
+7. Delivery results are reviewed and adjustments are handled if needed.
+8. Finance tracks invoice lifecycle and payment status.
+9. Leadership can audit every key action in one place.
 
 ---
 
