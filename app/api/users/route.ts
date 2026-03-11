@@ -4,6 +4,10 @@ import { hash } from "bcryptjs";
 import { authOptions, creatableRoles } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import {
+  createAndSendTeamInvitation,
+  generateProvisioningPassword,
+} from "@/lib/teamInvitations";
 
 const userSelect = {
   id: true,
@@ -74,9 +78,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { email, password, name, role, phone } = body as {
+  const { email, name, role, phone } = body as {
     email?: string;
-    password?: string;
     name?: string;
     role?: string;
     phone?: string;
@@ -85,12 +88,7 @@ export async function POST(request: Request) {
   if (!email?.trim()) {
     return NextResponse.json({ error: "El email es requerido" }, { status: 400 });
   }
-  if (!password || password.length < 6) {
-    return NextResponse.json(
-      { error: "La contraseña debe tener al menos 6 caracteres" },
-      { status: 400 },
-    );
-  }
+  const normalizedEmail = email.trim().toLowerCase();
   if (!name?.trim()) {
     return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 });
   }
@@ -101,31 +99,49 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
     return NextResponse.json({ error: "Ya existe un usuario con ese email" }, { status: 409 });
   }
 
-  const passwordHash = await hash(password, 12);
+  let user;
+  try {
+    const passwordHash = await hash(generateProvisioningPassword(), 12);
+    user = await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        name: name.trim(),
+        role,
+        active: false,
+        phone: phone?.trim() || null,
+        createdById: session.user.id,
+      },
+      select: userSelect,
+    });
 
-  const user = await prisma.user.create({
-    data: {
-      email: email.trim(),
-      passwordHash,
-      name: name.trim(),
-      role,
-      phone: phone?.trim() || null,
+    await createAndSendTeamInvitation({
+      provider: "PRISMA",
+      subjectId: user.id,
+      email: user.email,
+      role: user.role,
+      memberName: user.name,
       createdById: session.user.id,
-    },
-    select: userSelect,
-  });
+    });
+  } catch (err) {
+    if (user?.id) {
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => null);
+    }
+    console.error("user invite error:", err);
+    return NextResponse.json({ error: "No se pudo enviar la invitación" }, { status: 500 });
+  }
 
   await logAudit({
     userId: session.user.id,
     action: "CREATE",
     entity: "User",
     entityId: user.id,
-    metadata: { email: user.email, role: user.role, name: user.name },
+    metadata: { email: user.email, role: user.role, name: user.name, invite: true },
   });
 
   return NextResponse.json(user, { status: 201 });

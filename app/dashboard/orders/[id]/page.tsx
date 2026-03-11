@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { authOptions } from "@/lib/auth";
 import { OrderActions } from "./OrderActions";
 
 export default async function OrderDetailPage({
@@ -8,6 +10,7 @@ export default async function OrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await getServerSession(authOptions);
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },
@@ -110,7 +113,7 @@ export default async function OrderDetailPage({
           </div>
         )}
 
-        <OrderActions order={serialized} />
+        <OrderActions order={serialized} viewerRole={session?.user?.role || ""} />
       </div>
     </div>
   );

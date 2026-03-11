@@ -4,6 +4,7 @@ import { hash } from "bcryptjs";
 import { authOptions, canManageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit, logAuditBatch } from "@/lib/audit";
+import { createAndSendTeamInvitation } from "@/lib/teamInvitations";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -89,8 +90,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     );
   }
 
-  if (email) {
-    const dup = await prisma.user.findUnique({ where: { email } });
+  const normalizedEmail = email?.trim().toLowerCase();
+  if (email !== undefined && !normalizedEmail) {
+    return NextResponse.json({ error: "El email no puede estar vacío" }, { status: 400 });
+  }
+
+  if (normalizedEmail) {
+    const dup = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (dup && dup.id !== id) {
       return NextResponse.json({ error: "Ya existe un usuario con ese email" }, { status: 409 });
     }
@@ -110,9 +116,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     data.name = name.trim();
     audits.push({ field: "name", oldValue: current.name, newValue: name.trim() });
   }
-  if (email !== undefined && email !== current.email) {
-    data.email = email.trim();
-    audits.push({ field: "email", oldValue: current.email, newValue: email.trim() });
+  if (normalizedEmail !== undefined && normalizedEmail !== current.email) {
+    data.email = normalizedEmail;
+    audits.push({ field: "email", oldValue: current.email, newValue: normalizedEmail });
   }
   if (phone !== undefined && (phone || null) !== current.phone) {
     data.phone = phone?.trim() || null;
@@ -145,6 +151,25 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     select: userSelect,
   });
 
+  let invitationResent = false;
+  let invitationError: string | null = null;
+  if (normalizedEmail !== undefined && normalizedEmail !== current.email) {
+    try {
+      await createAndSendTeamInvitation({
+        provider: "PRISMA",
+        subjectId: updated.id,
+        email: updated.email,
+        role: updated.role,
+        memberName: updated.name,
+        createdById: session.user.id,
+      });
+      invitationResent = true;
+    } catch (err) {
+      console.error("resend invitation error:", err);
+      invitationError = "No se pudo reenviar la invitación automáticamente";
+    }
+  }
+
   if (audits.length > 0) {
     await logAuditBatch(
       audits.map((a) => ({
@@ -161,7 +186,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { createdById, ...result } = updated;
-  return NextResponse.json(result);
+  return NextResponse.json({ ...result, invitationResent, invitationError });
 }
 
 export async function DELETE(request: Request, { params }: RouteContext) {

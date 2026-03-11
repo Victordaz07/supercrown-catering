@@ -1,21 +1,32 @@
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { requireAdminOrSales } from "@/lib/auth-server";
+import {
+  createAndSendTeamInvitation,
+  generateProvisioningPassword,
+} from "@/lib/teamInvitations";
 
 export async function POST(request: Request) {
+  let sessionUser;
   try {
-    const sessionUser = await requireAdminOrSales();
+    sessionUser = await requireAdminOrSales();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
-    const { email, password, name, role } = body;
+    const { email, name, role } = body as {
+      email?: string;
+      name?: string;
+      role?: string;
+    };
+    const normalizedEmail = String(email ?? "").trim().toLowerCase();
+    const normalizedName = String(name ?? "").trim();
 
-    if (!email || !password || !name?.trim()) {
+    if (!normalizedEmail || !normalizedName) {
       return NextResponse.json(
-        { error: "email, password, and name are required" },
+        { error: "email and name are required" },
         { status: 400 }
       );
     }
@@ -28,34 +39,48 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
-
     const user = await adminAuth.createUser({
-      email: String(email).trim(),
-      password: String(password),
-      displayName: String(name).trim(),
+      email: normalizedEmail,
+      password: generateProvisioningPassword(),
+      displayName: normalizedName,
       emailVerified: false,
+      disabled: true,
     });
 
     await adminAuth.setCustomUserClaims(user.uid, { role: validRole });
 
     await adminDb.collection("users").doc(user.uid).set({
       email: user.email,
-      name: String(name).trim(),
+      name: normalizedName,
       role: validRole,
       createdAt: new Date(),
     });
+
+    try {
+      await createAndSendTeamInvitation({
+        provider: "FIREBASE",
+        subjectId: user.uid,
+        email: normalizedEmail,
+        role: validRole.toUpperCase(),
+        memberName: normalizedName,
+        createdById: sessionUser.uid,
+      });
+    } catch (inviteError) {
+      console.error("create-user invitation error:", inviteError);
+      await adminAuth.deleteUser(user.uid).catch(() => null);
+      await adminDb.collection("users").doc(user.uid).delete().catch(() => null);
+      return NextResponse.json(
+        { error: "Could not send invitation email" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       uid: user.uid,
       email: user.email,
       role: validRole,
+      invitationSent: true,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

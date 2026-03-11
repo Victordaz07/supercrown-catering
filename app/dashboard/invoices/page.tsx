@@ -33,7 +33,9 @@ type InvoiceRow = {
   pdfPathClient: string | null;
   notes: string | null;
   createdAt: string;
-  order: { orderNumber: string; customerName: string; customerEmail: string };
+  order?: { orderNumber: string; customerName: string; customerEmail: string };
+  customerName?: string;
+  orderNumber?: string;
 };
 
 type Stats = { totalInvoiced: number; totalPaid: number; totalPending: number; totalOverdue: number };
@@ -82,7 +84,7 @@ export default function InvoicesPage() {
     if (res.ok) {
       const d = await res.json();
       setInvoices(d.invoices ?? []);
-      setStats(d.stats ?? { totalInvoiced: 0, totalPaid: 0, totalPending: 0, totalOverdue: 0 });
+      setStats(d.stats ?? d.summary ?? { totalInvoiced: 0, totalPaid: 0, totalPending: 0, totalOverdue: 0 });
     }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,8 +189,8 @@ export default function InvoicesPage() {
                   <tr key={inv.id} onClick={() => { setSelected(inv); setPayForm(false); }}
                     className={`border-b border-stone/10 cursor-pointer hover:bg-warm/30 transition-colors ${i % 2 === 0 ? "" : "bg-warm/20"}`}>
                     <td className="px-4 py-3 font-medium text-terracotta">{inv.invoiceNumber}</td>
-                    <td className="px-4 py-3 text-dark">{inv.order.customerName}</td>
-                    <td className="px-4 py-3 text-muted hidden md:table-cell">{inv.order.orderNumber}</td>
+                    <td className="px-4 py-3 text-dark">{inv.order?.customerName ?? inv.customerName ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted hidden md:table-cell">{inv.order?.orderNumber ?? inv.orderNumber ?? "—"}</td>
                     <td className="px-4 py-3 text-right font-medium text-dark">
                       {inv.adjustmentSum < 0 ? (
                         <div><span className="line-through text-muted text-xs">{usd(inv.total)}</span> {usd(inv.adjustedTotal)}</div>
@@ -217,7 +219,9 @@ export default function InvoicesPage() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h2 className="font-display text-2xl text-dark">{selected.invoiceNumber}</h2>
-                <p className="text-muted text-sm">{selected.order.customerName} · {selected.order.orderNumber}</p>
+                <p className="text-muted text-sm">
+                  {selected.order?.customerName ?? selected.customerName ?? "—"} · {selected.order?.orderNumber ?? selected.orderNumber ?? "—"}
+                </p>
               </div>
               <button onClick={() => setSelected(null)} className="p-1 hover:bg-warm rounded-lg"><X className="w-5 h-5 text-muted" /></button>
             </div>

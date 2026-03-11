@@ -12,15 +12,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dateStr = searchParams.get("date");
   const driverId = searchParams.get("driverId");
+  let rangeStart: Date | null = null;
+  let rangeEnd: Date | null = null;
 
   const where: Record<string, unknown> = {};
 
   if (dateStr) {
-    const d = new Date(dateStr);
-    d.setHours(0, 0, 0, 0);
-    const next = new Date(d);
-    next.setDate(next.getDate() + 1);
-    where.date = { gte: d, lt: next };
+    rangeStart = new Date(dateStr);
+    rangeStart.setHours(0, 0, 0, 0);
+    rangeEnd = new Date(rangeStart);
+    rangeEnd.setDate(rangeEnd.getDate() + 1);
+    where.date = { gte: rangeStart, lt: rangeEnd };
   }
 
   if (driverId) {
@@ -29,6 +31,53 @@ export async function GET(request: Request) {
 
   if (session.user.role === "DELIVERY") {
     where.driverId = session.user.id;
+
+    // Backfill daily route stops from already-assigned orders so the driver app
+    // and order assignment stay aligned even for legacy/manual assignments.
+    if (rangeStart && rangeEnd) {
+      const assignedOrders = await prisma.order.findMany({
+        where: {
+          driverId: session.user.id,
+          eventDate: { gte: rangeStart, lt: rangeEnd },
+          status: { in: ["READY", "IN_TRANSIT"] },
+        },
+        select: { id: true },
+      });
+
+      if (assignedOrders.length > 0) {
+        const route = await prisma.deliveryRoute.upsert({
+          where: { driverId_date: { driverId: session.user.id, date: rangeStart } },
+          update: {},
+          create: {
+            driverId: session.user.id,
+            date: rangeStart,
+          },
+          select: { id: true },
+        });
+
+        const existingStops = await prisma.routeStop.findMany({
+          where: { routeId: route.id },
+          select: { orderId: true, stopOrder: true },
+        });
+        const existingOrderIds = new Set(existingStops.map((s) => s.orderId));
+        let nextStopOrder =
+          existingStops.length > 0
+            ? Math.max(...existingStops.map((s) => s.stopOrder)) + 1
+            : 0;
+
+        for (const order of assignedOrders) {
+          if (existingOrderIds.has(order.id)) continue;
+          await prisma.routeStop.create({
+            data: {
+              routeId: route.id,
+              orderId: order.id,
+              stopOrder: nextStopOrder,
+            },
+          });
+          nextStopOrder += 1;
+        }
+      }
+    }
   }
 
   const routes = await prisma.deliveryRoute.findMany({

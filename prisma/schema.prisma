@@ -317,3 +317,21 @@ model AuditLog {
   metadata  String?  // JSON
   createdAt DateTime @default(now())
 }
+
+model TeamInvitation {
+  id          String   @id @default(cuid())
+  provider    String   // PRISMA | FIREBASE
+  subjectId   String?  // prisma user id or firebase uid
+  email       String
+  role        String?
+  tokenHash   String   @unique
+  purpose     String   @default("SET_PASSWORD")
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([provider, subjectId])
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}

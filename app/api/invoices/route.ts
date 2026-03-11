@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       order: {
         select: {
           customerName: true,
+          customerEmail: true,
           orderNumber: true,
         },
       },
@@ -61,8 +62,6 @@ export async function GET(request: Request) {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
       orderId: inv.orderId,
-      customerName: inv.order.customerName,
-      orderNumber: inv.order.orderNumber,
       subtotal: inv.subtotal,
       taxRate: inv.taxRate,
       taxAmount: inv.taxAmount,
@@ -73,7 +72,16 @@ export async function GET(request: Request) {
       dueDate: inv.dueDate,
       paidAt: inv.paidAt,
       paymentMethod: inv.paymentMethod,
+      paymentRef: inv.paymentRef,
+      pdfPathDriver: inv.pdfPathDriver,
+      pdfPathClient: inv.pdfPathClient,
+      notes: inv.notes,
       createdAt: inv.createdAt,
+      order: {
+        customerName: inv.order.customerName,
+        customerEmail: inv.order.customerEmail,
+        orderNumber: inv.order.orderNumber,
+      },
     };
   });
 
@@ -90,6 +98,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     invoices: data,
+    stats: { totalInvoiced, totalPaid, totalPending, totalOverdue },
     summary: { totalInvoiced, totalPaid, totalPending, totalOverdue },
   });
 }

@@ -5,6 +5,16 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 
 type RouteContext = { params: Promise<{ id: string }> };
+const VALID_ORDER_STATUSES = ["PENDING", "CONFIRMED", "READY", "IN_TRANSIT", "DELIVERED", "CANCELLED"] as const;
+
+function isWorkflowTransition(fromStatus: string, toStatus: string): boolean {
+  return (
+    (fromStatus === "PENDING" && toStatus === "CONFIRMED") ||
+    (fromStatus === "CONFIRMED" && toStatus === "READY") ||
+    (fromStatus === "READY" && toStatus === "IN_TRANSIT") ||
+    (fromStatus === "IN_TRANSIT" && toStatus === "DELIVERED")
+  );
+}
 
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await getServerSession(authOptions);
@@ -49,9 +59,20 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   // --- Status change ---
   if (body.status) {
-    const validStatuses = ["PENDING", "CONFIRMED", "READY", "IN_TRANSIT", "DELIVERED", "CANCELLED"];
-    if (!validStatuses.includes(body.status)) {
+    if (!VALID_ORDER_STATUSES.includes(body.status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    if (
+      session.user.role === "SALES" &&
+      !isWorkflowTransition(order.status, body.status)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Manual status changes require ADMIN/MASTER approval. Submit a status request.",
+        },
+        { status: 403 }
+      );
     }
     if (order.status !== body.status) {
       await logAudit({ userId: uid, action: "STATUS_CHANGE", entity: "Order", entityId: id, field: "status", oldValue: order.status, newValue: body.status });
@@ -88,8 +109,76 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   if (body.driverId !== undefined) {
-    orderUpdate.driverId = body.driverId || null;
-    await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: "driverId", oldValue: (order as Record<string, unknown>).driverId as string || "", newValue: body.driverId || "" });
+    const nextDriverId = body.driverId || null;
+    const previousDriverId = (order as Record<string, unknown>).driverId as string | null;
+
+    orderUpdate.driverId = nextDriverId;
+    await logAudit({
+      userId: uid,
+      action: "UPDATE",
+      entity: "Order",
+      entityId: id,
+      field: "driverId",
+      oldValue: previousDriverId || "",
+      newValue: nextDriverId || "",
+    });
+
+    if (nextDriverId) {
+      const driver = await prisma.user.findUnique({
+        where: { id: nextDriverId },
+        select: { id: true, role: true },
+      });
+      if (!driver || driver.role !== "DELIVERY") {
+        return NextResponse.json({ error: "Invalid driver" }, { status: 400 });
+      }
+
+      const routeDate = new Date(order.eventDate);
+      routeDate.setHours(0, 0, 0, 0);
+
+      const route = await prisma.deliveryRoute.upsert({
+        where: { driverId_date: { driverId: nextDriverId, date: routeDate } },
+        update: {},
+        create: {
+          driverId: nextDriverId,
+          date: routeDate,
+        },
+      });
+
+      const existingStops = await prisma.routeStop.findMany({
+        where: { orderId: id },
+        select: { id: true, routeId: true },
+      });
+
+      // Keep a single source of truth: one order belongs to one route stop.
+      const stopOnTargetRoute = existingStops.find((s) => s.routeId === route.id);
+      const stopsToRemove = existingStops.filter((s) => s.routeId !== route.id);
+      for (const stop of stopsToRemove) {
+        await prisma.routeStop.delete({ where: { id: stop.id } });
+      }
+
+      if (!stopOnTargetRoute) {
+        const lastStop = await prisma.routeStop.findFirst({
+          where: { routeId: route.id },
+          orderBy: { stopOrder: "desc" },
+          select: { stopOrder: true },
+        });
+        await prisma.routeStop.create({
+          data: {
+            routeId: route.id,
+            orderId: id,
+            stopOrder: (lastStop?.stopOrder ?? -1) + 1,
+          },
+        });
+      }
+    } else {
+      const existingStops = await prisma.routeStop.findMany({
+        where: { orderId: id },
+        select: { id: true, routeId: true },
+      });
+      for (const stop of existingStops) {
+        await prisma.routeStop.delete({ where: { id: stop.id } });
+      }
+    }
   }
 
   if (body.eventDate !== undefined) {

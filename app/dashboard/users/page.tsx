@@ -11,6 +11,8 @@ import {
   UserCheck,
   UserX,
   Pencil,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 type UserRow = {
@@ -56,9 +58,18 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = useState<UserRow | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "", phone: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "",
+    phone: "",
+  });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const allowed = CREATABLE[role] ?? [];
 
@@ -83,17 +94,39 @@ export default function UsersPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", email: "", password: "", role: allowed[0] ?? "", phone: "" });
+    setForm({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      role: allowed[0] ?? "",
+      phone: "",
+    });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setModal("create");
   }
 
   function openEdit(u: UserRow) {
     setEditing(u);
-    setForm({ name: u.name, email: u.email, password: "", role: u.role, phone: u.phone ?? "" });
+    setForm({
+      name: u.name,
+      email: u.email,
+      password: "",
+      confirmPassword: "",
+      role: u.role,
+      phone: u.phone ?? "",
+    });
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setModal("edit");
   }
 
   async function handleSave() {
+    if (modal === "edit" && form.password && form.password !== form.confirmPassword) {
+      setToast({ msg: "Passwords do not match", ok: false });
+      return;
+    }
     setSaving(true);
     try {
       const url = modal === "create" ? "/api/users" : `/api/users/${editing!.id}`;
@@ -107,7 +140,16 @@ export default function UsersPage() {
         setToast({ msg: d.error ?? "An error occurred", ok: false });
         return;
       }
-      setToast({ msg: modal === "create" ? "User created" : "User updated", ok: true });
+      const data = await res.json().catch(() => ({}));
+      if (modal === "create") {
+        setToast({ msg: "User created and invitation sent", ok: true });
+      } else if (data.invitationError) {
+        setToast({ msg: `User updated. ${data.invitationError}`, ok: false });
+      } else if (data.invitationResent) {
+        setToast({ msg: "User updated and invitation resent", ok: true });
+      } else {
+        setToast({ msg: "User updated", ok: true });
+      }
       setModal(null);
       fetchUsers();
     } finally {
@@ -270,7 +312,49 @@ export default function UsersPage() {
                 <label className="block text-xs uppercase tracking-wider text-muted mb-1">
                   Password{modal === "edit" && " (leave empty to keep)"}
                 </label>
-                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-4 py-2.5 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
+                {modal === "create" ? (
+                  <div className="text-xs text-muted bg-white border border-stone/40 rounded-xl px-4 py-3">
+                    An invitation email will be sent so the member can create a password.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        className="w-full px-4 py-2.5 pr-11 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-dark"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {form.password && (
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={form.confirmPassword}
+                          onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                          placeholder="Confirm password"
+                          className="w-full px-4 py-2.5 pr-11 bg-white border border-stone/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword((prev) => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-dark"
+                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs uppercase tracking-wider text-muted mb-1">Role</label>
@@ -287,7 +371,12 @@ export default function UsersPage() {
             </div>
             <button
               onClick={handleSave}
-              disabled={saving || !form.name || !form.email || (modal === "create" && !form.password)}
+              disabled={
+                saving ||
+                !form.name ||
+                !form.email ||
+                (modal === "edit" && !!form.password && form.password !== form.confirmPassword)
+              }
               className="w-full mt-6 bg-terracotta text-cream py-3 rounded-xl font-medium hover:bg-terracotta/90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}

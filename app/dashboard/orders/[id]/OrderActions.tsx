@@ -43,7 +43,22 @@ type OrderData = {
   invoices: Array<{ id: string; invoiceNumber: string; pdfPathDriver?: string | null; pdfPathClient?: string | null }>;
 };
 
-export function OrderActions({ order: initialOrder }: { order: OrderData }) {
+function isWorkflowTransition(fromStatus: string, toStatus: string) {
+  return (
+    (fromStatus === "PENDING" && toStatus === "CONFIRMED") ||
+    (fromStatus === "CONFIRMED" && toStatus === "READY") ||
+    (fromStatus === "READY" && toStatus === "IN_TRANSIT") ||
+    (fromStatus === "IN_TRANSIT" && toStatus === "DELIVERED")
+  );
+}
+
+export function OrderActions({
+  order: initialOrder,
+  viewerRole,
+}: {
+  order: OrderData;
+  viewerRole: string;
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [invoicing, setInvoicing] = useState(false);
@@ -80,6 +95,7 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
   const [assigningDriver, setAssigningDriver] = useState(false);
   const [statusDraft, setStatusDraft] = useState(initialOrder.status);
   const [statusSaving, setStatusSaving] = useState(false);
+  const canAuthorizeManualStatus = viewerRole === "MASTER" || viewerRole === "ADMIN";
 
   const editable = ["PENDING", "CONFIRMED"].includes(initialOrder.status);
 
@@ -285,13 +301,36 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
     setStatusSaving(true);
     setMsg(null);
     try {
-      const res = await fetch(`/api/orders/${initialOrder.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to update status");
-      setMsg({ type: "ok", text: `Order status changed to ${nextStatus}` });
+      const isWorkflowChange = isWorkflowTransition(initialOrder.status, nextStatus);
+      const mustRequestApproval =
+        viewerRole === "SALES" && !canAuthorizeManualStatus && !isWorkflowChange;
+
+      if (mustRequestApproval) {
+        const requestRes = await fetch("/api/order-status-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: initialOrder.id,
+            requestedStatus: nextStatus,
+            reason: `Manual override requested from order detail (${initialOrder.status} -> ${nextStatus}).`,
+          }),
+        });
+        if (!requestRes.ok) {
+          throw new Error((await requestRes.json()).error || "Failed to submit status request");
+        }
+        setMsg({
+          type: "ok",
+          text: `Manual change requested: ${initialOrder.status} -> ${nextStatus}. Awaiting ADMIN/MASTER approval.`,
+        });
+      } else {
+        const res = await fetch(`/api/orders/${initialOrder.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+        if (!res.ok) throw new Error((await res.json()).error || "Failed to update status");
+        setMsg({ type: "ok", text: `Order status changed to ${nextStatus}` });
+      }
       router.refresh();
     } catch (e) {
       setMsg({ type: "err", text: e instanceof Error ? e.message : "Error updating status" });
@@ -586,8 +625,13 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
             onClick={() => changeStatus(statusDraft)}
             className="px-3 py-1.5 bg-[#556B2F] text-white rounded-lg text-sm hover:bg-[#4a5d29] disabled:opacity-50"
           >
-            {statusSaving ? "Updating..." : "Update Status"}
+            {statusSaving ? "Updating..." : viewerRole === "SALES" ? "Apply / Request Change" : "Update Status"}
           </button>
+          {viewerRole === "SALES" && (
+            <span className="text-[11px] text-muted">
+              Workflow changes apply directly; manual overrides require ADMIN/MASTER approval.
+            </span>
+          )}
           {initialOrder.status === "CONFIRMED" && (
             <button
               onClick={() => changeStatus("PENDING")}
