@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import bcryptjs from "bcryptjs";
-const { hash } = bcryptjs;
+import { hash } from "bcryptjs";
 import { authOptions, canManageRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit, logAuditBatch } from "@/lib/audit";

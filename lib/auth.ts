@@ -1,7 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcryptjs from "bcryptjs";
-const { compare } = bcryptjs;
+import { compare } from "bcryptjs";
 import { prisma } from "./db";
 
 declare module "next-auth" {
