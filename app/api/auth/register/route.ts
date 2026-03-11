@@ -8,17 +8,18 @@ export async function POST(request: Request) {
     const name = String(body.name ?? "").trim();
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    const marketingConsent = Boolean(body.marketingConsent ?? false);
 
     if (!name || !email || !password) {
       return NextResponse.json(
-        { error: "Nombre, email y contraseña son obligatorios" },
+        { error: "Name, email, and password are required" },
         { status: 400 }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: "La contraseña debe tener al menos 6 caracteres" },
+        { error: "Password must be at least 6 characters" },
         { status: 400 }
       );
     }
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Este email ya está registrado" },
+        { error: "This email is already registered" },
         { status: 409 }
       );
     }
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         email,
         passwordHash,
         role: "CLIENT",
+        marketingConsent,
       },
     });
 
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("register error:", error);
     return NextResponse.json(
-      { error: "No se pudo crear la cuenta" },
+      { error: "Could not create account" },
       { status: 500 }
     );
   }

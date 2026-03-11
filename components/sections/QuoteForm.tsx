@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ShoppingBag, X, Plus, Minus, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
+import { ShoppingBag, X, Plus, Minus, ArrowRight, CheckCircle, AlertCircle, UserPlus, Eye, EyeOff, Star, Bell, Clock, Gift } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useCart } from "@/lib/cartStore";
+import { signIn } from "next-auth/react";
 
 function FloatingInput({
   label,
@@ -86,6 +87,12 @@ export function QuoteForm() {
   const [submitted, setSubmitted] = useState(false);
   const [simulated, setSimulated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accountStep, setAccountStep] = useState<"prompt" | "form" | "done" | null>(null);
+  const [accountPassword, setAccountPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(true);
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -125,9 +132,42 @@ export function QuoteForm() {
       if (!res.ok) throw new Error(data.error || "Failed to send");
       setSubmitted(true);
       setSimulated(data.simulated ?? false);
+      setAccountStep("prompt");
       clearCart();
     } catch {
       setError("Something went wrong. Please try again or contact us directly.");
+    }
+  };
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountError(null);
+    setAccountLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: accountPassword,
+          marketingConsent,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not create account");
+
+      await signIn("credentials", {
+        email: formData.email,
+        password: accountPassword,
+        redirect: false,
+      });
+
+      setAccountStep("done");
+    } catch (err) {
+      setAccountError(err instanceof Error ? err.message : "Error creating account");
+    } finally {
+      setAccountLoading(false);
     }
   };
 
@@ -341,7 +381,7 @@ export function QuoteForm() {
                 </div>
               )}
               {submitted ? (
-                <div className="space-y-2 animate-fade-in">
+                <div className="space-y-4 animate-fade-in">
                   <div className="flex items-center gap-3 bg-olive/15 text-olive px-5 py-4 rounded-xl">
                     <CheckCircle className="w-5 h-5 flex-shrink-0" />
                     <span>
@@ -353,6 +393,156 @@ export function QuoteForm() {
                     <p className="text-xs text-muted pl-1">
                       (Beta: simulated request — email was not sent)
                     </p>
+                  )}
+
+                  {accountStep === "prompt" && (
+                    <div className="bg-cream border border-stone/30 rounded-2xl p-6 shadow-sm animate-fade-in">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-terracotta/10 flex items-center justify-center">
+                          <UserPlus className="w-5 h-5 text-terracotta" />
+                        </div>
+                        <div>
+                          <h3 className="font-display text-lg text-dark">Create a free account?</h3>
+                          <p className="text-muted text-xs">Optional — no obligation</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                        <div className="flex items-start gap-2.5 p-3 bg-warm rounded-xl">
+                          <Clock className="w-4 h-4 text-terracotta mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-dark">Track your orders</p>
+                            <p className="text-xs text-muted">Real-time status updates</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2.5 p-3 bg-warm rounded-xl">
+                          <Star className="w-4 h-4 text-terracotta mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-dark">Faster reorders</p>
+                            <p className="text-xs text-muted">Your info saved for next time</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2.5 p-3 bg-warm rounded-xl">
+                          <Gift className="w-4 h-4 text-terracotta mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-dark">Exclusive deals</p>
+                            <p className="text-xs text-muted">Early access to promotions</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2.5 p-3 bg-warm rounded-xl">
+                          <Bell className="w-4 h-4 text-terracotta mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-dark">Quote history</p>
+                            <p className="text-xs text-muted">Access all your past requests</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setAccountStep("form")}
+                          className="flex-1 bg-terracotta text-cream py-3 px-4 font-medium rounded-xl hover:bg-terracotta/90 transition-all duration-300 flex items-center justify-center gap-2"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Yes, create my account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAccountStep(null)}
+                          className="px-4 py-3 text-muted hover:text-dark text-sm rounded-xl border border-stone/30 hover:border-stone/50 transition-all duration-300"
+                        >
+                          No thanks
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {accountStep === "form" && (
+                    <form onSubmit={handleCreateAccount} className="bg-cream border border-stone/30 rounded-2xl p-6 shadow-sm space-y-4 animate-fade-in">
+                      <h3 className="font-display text-lg text-dark">Set up your account</h3>
+                      <p className="text-muted text-sm -mt-2">
+                        We&apos;ll use <strong className="text-dark">{formData.email}</strong> as your login email.
+                      </p>
+
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={accountPassword}
+                          onChange={(e) => setAccountPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          placeholder=" "
+                          className="peer w-full bg-cream border border-stone/40 rounded-xl px-4 pt-6 pb-2 pr-12 text-dark focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-all duration-300 placeholder-transparent"
+                        />
+                        <label className="absolute left-4 top-2 text-[11px] uppercase tracking-wider text-muted transition-all duration-200 peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-focus:top-2 peer-focus:text-[11px] peer-focus:uppercase peer-focus:tracking-wider peer-focus:text-terracotta pointer-events-none">
+                          Choose a password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-dark transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted -mt-2">Minimum 6 characters</p>
+
+                      <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={marketingConsent}
+                          onChange={(e) => setMarketingConsent(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 rounded border-stone/40 text-terracotta focus:ring-terracotta/30 cursor-pointer"
+                        />
+                        <span className="text-sm text-muted group-hover:text-dark transition-colors">
+                          Send me special offers, seasonal menus, and exclusive deals via email. You can unsubscribe anytime.
+                        </span>
+                      </label>
+
+                      {accountError && (
+                        <div className="flex items-center gap-3 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                          {accountError}
+                        </div>
+                      )}
+
+                      <div className="flex gap-3">
+                        <button
+                          type="submit"
+                          disabled={accountLoading}
+                          className="flex-1 bg-terracotta text-cream py-3 px-4 font-medium rounded-xl hover:bg-terracotta/90 disabled:opacity-70 transition-all duration-300 flex items-center justify-center gap-2"
+                        >
+                          {accountLoading ? "Creating..." : "Create account"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAccountStep(null)}
+                          className="px-4 py-3 text-muted hover:text-dark text-sm rounded-xl border border-stone/30 hover:border-stone/50 transition-all duration-300"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {accountStep === "done" && (
+                    <div className="bg-cream border border-olive/30 rounded-2xl p-6 shadow-sm animate-fade-in">
+                      <div className="flex items-center gap-3 mb-2">
+                        <CheckCircle className="w-5 h-5 text-olive" />
+                        <h3 className="font-display text-lg text-dark">Account created!</h3>
+                      </div>
+                      <p className="text-muted text-sm mb-4">
+                        You&apos;re all set. You can now track your orders and manage your account.
+                      </p>
+                      <Link
+                        href="/"
+                        className="inline-flex items-center gap-2 text-terracotta hover:text-terracotta/80 text-sm font-medium transition-colors"
+                      >
+                        Go to my dashboard
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
                   )}
                 </div>
               ) : (

@@ -15,9 +15,10 @@ model User {
   passwordHash String
   name         String
   role         String   // MASTER | ADMIN | SALES | DELIVERY | CLIENT
-  active       Boolean  @default(true)
-  phone        String?
-  createdById  String?
+  active           Boolean  @default(true)
+  phone            String?
+  marketingConsent Boolean  @default(false)
+  createdById      String?
   createdBy    User?    @relation("CreatedByUser", fields: [createdById], references: [id])
   createdUsers User[]   @relation("CreatedByUser")
   createdAt    DateTime @default(now())
