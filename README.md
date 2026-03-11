@@ -1,190 +1,172 @@
-# Super Crown Catering
+# Super Crown Catering Platform
 
-Sistema integral de gestion para Super Crown Catering. Manejo de ordenes, facturacion, entregas con verificacion, gestion de equipo y auditoria completa.
+An end-to-end business platform designed to help catering companies run faster, sell smarter, and deliver with confidence.
 
-## Stack Tecnologico
+This is not just an internal dashboard. It is an operational command center that connects sales, production, delivery, finance, and leadership in one place.
 
-- **Framework:** Next.js 14 (App Router)
-- **UI:** React 18, Tailwind CSS
-- **Base de datos:** PostgreSQL (Neon) con Prisma ORM
-- **Autenticacion:** NextAuth.js (JWT + Credentials)
-- **PDF:** @react-pdf/renderer
-- **Iconos:** Lucide React
+---
 
-## Inicio Rapido
+## Executive Pitch Snapshot
 
-```bash
-# Instalar dependencias
-npm install
+### Business Problem
+- Sales, operations, delivery, and finance often work in disconnected tools.
+- Status changes, pricing adjustments, and delivery incidents can create confusion and margin leakage.
+- Leadership lacks a single trusted source of truth for accountability and performance.
 
-# Configurar variables de entorno
-cp .env.local.example .env
+### Business Outcome
+- One unified workflow from order intake to delivery verification and billing closure.
+- Faster decision-making with role-based visibility and approval controls.
+- Better margin protection through pricing discipline, auditability, and fewer fulfillment disputes.
 
-# Ejecutar migraciones
-npx prisma migrate dev
+### Strategic Value in One Line
+**This platform turns catering operations into a scalable, controllable, and revenue-protecting system.**
 
-# Seed de datos iniciales (crea MASTER, SALES, DELIVERY)
-npx prisma db seed
+### KPI Impact Areas (typical targets for similar rollouts)
+- 15% - 35% reduction in order processing friction
+- 20% - 50% faster internal status handoffs
+- 10% - 30% fewer post-delivery billing disputes
+- 5% - 15% improvement in average order value (pricing + upsell discipline)
 
-# Iniciar servidor de desarrollo
-npm run dev
-```
+### Recommended Rollout (Phased)
+- **Phase 1 (Core Control):** Orders, statuses, invoices, role access
+- **Phase 2 (Operational Excellence):** Routing, delivery verification, evidence flows
+- **Phase 3 (Growth Optimization):** Pricing tiers, coupons, upsells, loyalty/referrals
+- **Phase 4 (Executive Intelligence):** Reporting depth, advanced integrations, multi-branch standards
 
-Abrir [http://localhost:3000](http://localhost:3000).
+---
 
-## Variables de Entorno
+## What This Platform Delivers for the Business
 
-```env
-# Base de datos PostgreSQL (Neon recomendado - neon.tech)
-DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+### 1) Better Sales Control
+- Capture and manage orders in a structured workflow
+- Edit orders safely when clients change requirements
+- Use suggested pricing logic and volume tiers
+- Apply discounts, coupons, and upsell recommendations
 
-NEXTAUTH_SECRET="tu-secret-seguro"
-NEXTAUTH_URL="http://localhost:3000"
+### 2) Stronger Operational Execution
+- Move orders through clear status stages
+- Assign drivers and route stops with sequencing controls
+- Keep teams aligned with role-based visibility
 
-# Credenciales del Master User (opcionales, tienen defaults)
-MASTER_EMAIL="admin@supercrown.com"
-MASTER_PASSWORD="master2026!"
-MASTER_NAME="Victor"
-```
+### 3) Safer Delivery and Fewer Disputes
+- Driver-facing flow for route execution and delivery updates
+- Delivery verification process with evidence and review
+- Better traceability for what was expected vs delivered
 
-## Jerarquia de Usuarios
+### 4) Financial Reliability
+- Invoice generation with tax and totals
+- Payment tracking and invoice status control
+- Adjustment workflow linked to delivery outcomes
 
-| Rol | Nivel | Puede crear | Acceso |
-|---|---|---|---|
-| MASTER | 100 | ADMIN, SALES, DELIVERY | Todo el sistema |
-| ADMIN | 80 | SALES, DELIVERY | Todo excepto gestionar otros ADMIN |
-| SALES | 40 | — | Ordenes, facturas, revision de entregas |
-| DELIVERY | 20 | — | Lista de entregas, reportes de entrega |
-| CLIENT | 10 | — | Auto-registro, ver sitio publico |
+### 5) Executive Visibility
+- Immutable audit history of key business actions
+- Team permissions and accountability by role
+- Cleaner operational timeline for management decisions
 
-- MASTER puede crear y gestionar a todos.
-- ADMIN puede crear y gestionar SALES y DELIVERY (solo los que creo).
-- Los usuarios se desactivan (soft delete), nunca se eliminan.
-- Usuarios desactivados no pueden iniciar sesion.
+---
 
-## Modulos del Dashboard
+## Core Business Modules
 
-### Ordenes (`/dashboard/orders`)
-- Listado de ordenes con estados: PENDING, CONFIRMED, READY, IN_TRANSIT, DELIVERED, CANCELLED
-- Detalle de orden con items, notas y facturas
-- Generacion de facturas con calculo de montos
+## Sales and Orders
+- Order intake and editing
+- Status transitions across the fulfillment lifecycle
+- Controlled status rollbacks when corrections are needed
+- Admin-approved status request flow with audit trail
 
-### Facturas (`/dashboard/invoices`)
-- Dashboard financiero con 4 tarjetas: Total Facturado, Cobrado, Pendiente, Vencido
-- Filtros por estado, rango de fechas y busqueda
-- Estados: DRAFT, SENT, DELIVERED, ADJUSTED, PAID, OVERDUE, VOID, REFUNDED
-- Registro de pagos (Efectivo, Cheque, Tarjeta, Transferencia)
-- Descarga de PDFs (copia Driver y copia Cliente)
-- Notas de credito y ajustes vinculados a reportes de entrega
+## Pricing and Revenue Growth
+- Product-level price tiers by quantity
+- Suggested item pricing based on business rules
+- Coupon management and discount logic
+- Upsell suggestions during order management
 
-### Reportes de Entrega (`/dashboard/deliveries`)
-- Revision de reportes creados por drivers
-- Vista de items (esperado vs entregado)
-- Galeria de fotos de evidencia (facturas firmadas, productos danados)
-- Acciones: Aprobar, Aprobar con ajuste (nota de credito), Rechazar, Escalar a Master
+## Products and Menu Management
+- Central product catalog (create, edit, enable/disable)
+- Category-based organization for faster control
+- Image upload support
+- Public menu powered by managed product data
 
-### Reporte del Driver (`/dashboard/delivery/[orderId]/report`)
-- Interfaz mobile-first para conductores
-- Checklist de productos con cantidades entregadas
-- Reporte de incidencias: Faltante, Danado, Producto Equivocado
-- Carga de fotos: factura firmada (driver/cliente), productos danados
-- Envio automatico al sistema de revision
+## Delivery and Route Operations
+- Route planning with multiple stops
+- Driver assignment and stop ordering
+- Daily route execution view for drivers
+- Google Maps route links (single-stop and multi-stop)
 
-### Gestion de Equipo (`/dashboard/users`)
-- Tabla de usuarios con filtros por rol, estado y busqueda
-- Crear, editar y desactivar miembros
-- Roles permitidos segun jerarquia
-- Badges de color por rol
+## Delivery Verification and Post-Delivery Review
+- Delivery report submission
+- Item-level expected vs delivered validation
+- Evidence capture and review workflow
+- Escalation support for sensitive cases
 
-### Registro de Auditoria (`/dashboard/audit`)
-- Historial inmutable de todos los cambios en el sistema
-- Registra: quien, que, cuando, valor anterior, valor nuevo
-- Filtros por entidad, accion, rango de fechas
-- Paginacion de 50 registros por pagina
-- Solo visible para MASTER y ADMIN
+## Team, Roles, and Governance
+- Multi-role hierarchy (Master, Admin, Sales, Delivery, Client)
+- Controlled user creation and management
+- Permission-based access to critical actions
 
-## API Endpoints
+## Audit and Compliance
+- Full change traceability (who, what, when)
+- Status approvals and rejections logged
+- Business event history for transparency and risk reduction
 
-### Usuarios
-- `GET /api/users` — Listar usuarios (filtros: role, active, search)
-- `POST /api/users` — Crear usuario
-- `GET /api/users/[id]` — Detalle de usuario
-- `PATCH /api/users/[id]` — Editar usuario
-- `DELETE /api/users/[id]` — Desactivar usuario (soft delete)
+---
 
-### Ordenes
-- `GET /api/orders/[id]` — Detalle de orden
-- `PATCH /api/orders/[id]` — Actualizar estado/notas
-- `POST /api/orders/[id]/invoice` — Generar factura con PDFs
+## Why Clients Usually Choose a System Like This
 
-### Facturas
-- `GET /api/invoices` — Listar facturas con estadisticas
-- `GET /api/invoices/[id]` — Detalle de factura
-- `PATCH /api/invoices/[id]` — Actualizar estado, registrar pago
-- `GET /api/invoices/[id]/adjust` — Listar ajustes
-- `POST /api/invoices/[id]/adjust` — Crear nota de credito
+- To reduce operational mistakes and rework
+- To protect margin with better pricing discipline
+- To speed up coordination between sales and delivery
+- To improve service consistency as order volume grows
+- To reduce financial leakage from untracked changes
+- To create a professional, scalable operating model
 
-### Entregas
-- `GET /api/deliveries` — Listar reportes de entrega
-- `POST /api/deliveries/report/[orderId]` — Driver crea reporte
-- `GET /api/deliveries/report/[orderId]` — Obtener reporte de una orden
-- `POST /api/deliveries/[id]/photos` — Subir foto de evidencia
-- `PATCH /api/deliveries/[id]/review` — Revisar reporte (aprobar/rechazar/escalar)
+---
 
-### Autenticacion
-- `POST /api/auth/register` — Auto-registro de clientes
-- NextAuth handles `/api/auth/*` routes
+## Typical Workflow (Business View)
 
-## Workflow de Entrega y Verificacion
+1. A quote/order is created or updated.
+2. Pricing is validated (tiers, suggestions, discounts, coupons).
+3. Order is confirmed and prepared.
+4. Route and driver are assigned.
+5. Driver executes stops and records outcomes.
+6. Delivery results are reviewed and adjustments are handled if needed.
+7. Finance tracks invoice lifecycle and payment status.
+8. Leadership can audit every key action in one place.
 
-1. **Orden lista** — Sales confirma la orden y la marca como READY
-2. **Doble factura** — Se generan dos copias PDF (Driver y Cliente) con espacio para anotaciones y firmas
-3. **Entrega** — El driver lleva los productos y las dos copias de la factura
-4. **Verificacion** — El receptor verifica los productos, anota cambios en ambas copias y firma
-5. **Reporte digital** — El driver crea el reporte en la app: checklist de items, cantidades, incidencias
-6. **Evidencia fotografica** — El driver sube fotos de ambas facturas firmadas y productos danados si aplica
-7. **Revision** — Sales/Admin revisa el reporte, las fotos y las discrepancias
-8. **Ajuste** — Si hay problemas, se crea una nota de credito vinculada al reporte con razon detallada
-9. **Escalamiento** — Casos sospechosos se escalan al MASTER para decision final
-10. **Auditoria** — Todo queda registrado en el log inmutable
+---
 
-## Estructura de Archivos
+## Typical Market Investment Ranges (Reference Only)
 
-```
-app/
-  api/
-    auth/          # NextAuth + registro
-    deliveries/    # Reportes de entrega, fotos, revision
-    invoices/      # Facturas, ajustes
-    orders/        # Ordenes, generacion de factura
-    users/         # CRUD de usuarios
-  dashboard/
-    audit/         # Registro de auditoria (server component)
-    delivery/      # Vista del driver + reporte
-    deliveries/    # Revision de entregas (sales/admin)
-    invoices/      # Dashboard financiero
-    orders/        # Listado y detalle de ordenes
-    users/         # Gestion de equipo
-  login/           # Login unificado
-  menu/            # Menu publico
-components/
-  dashboard/       # Componentes del dashboard
-  ui/              # Componentes reutilizables
-lib/
-  audit.ts         # Helper logAudit() inmutable
-  auth.ts          # NextAuth config + jerarquia de roles
-  db.ts            # Prisma client singleton
-  invoiceUtils.ts  # Generacion de numeros de factura
-prisma/
-  schema.prisma    # 10 modelos
-  seed.ts          # Seed de MASTER, SALES, DELIVERY
-  migrations/      # Historial de migraciones
-```
+These ranges are general market references for similar custom business platforms.  
+They are **not** a formal quote and **not** a final project proposal.
 
-## Usuarios de Prueba
+| Project Scope | Typical Range (USD) | Typical Timeline |
+|---|---:|---:|
+| Process Discovery + Functional Blueprint | $4,000 - $15,000 | 2 - 6 weeks |
+| MVP (Core sales + orders + basic delivery + invoicing) | $25,000 - $80,000 | 8 - 16 weeks |
+| Full Platform (Roles, routes, audits, approvals, pricing engine, product management) | $80,000 - $220,000+ | 4 - 9+ months |
+| Enterprise-Grade Version (multi-branch, deep integrations, advanced analytics) | $220,000 - $600,000+ | 9 - 18+ months |
 
-| Email | Password | Rol |
-|---|---|---|
-| admin@supercrown.com | master2026! | MASTER |
-| ventas@supercrown.com | sales123 | SALES |
-| repartidor@supercrown.com | delivery123 | DELIVERY |
+### What usually affects budget the most
+- Number of modules and workflow complexity
+- Approval/governance requirements
+- Integration requirements (ERP, accounting, CRM, payment systems)
+- Reporting depth and custom analytics
+- Security/compliance and deployment standards
+- Change management and post-launch support model
+
+---
+
+## Commercial Presentation Notes
+
+If this document is shared with decision-makers:
+- Position the platform as an operations and margin-protection system
+- Focus on control, speed, accountability, and scalability
+- Present phased rollout options (MVP first, then expansions)
+- Tie each module to measurable business outcomes
+
+---
+
+## Minimal Technical Note
+
+This platform is built as a modern web application with secure authentication, centralized data management, role-based access, and a modular architecture ready for phased growth.
+
+For implementation or deployment details, a separate technical handbook can be provided.
