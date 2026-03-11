@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { adminAuth } from "@/lib/firebase/admin";
 
 const SESSION_COOKIE_NAME = "session";
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 5; // 5 days
+
+export async function GET() {
+  // next-auth client calls /api/auth/session with GET.
+  // Returning JSON here prevents 405 conflicts with the legacy Firebase POST flow.
+  const session = await getServerSession(authOptions);
+  return NextResponse.json(session ?? null);
+}
 
 export async function POST(request: Request) {
   try {
