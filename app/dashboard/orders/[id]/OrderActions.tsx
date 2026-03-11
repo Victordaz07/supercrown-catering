@@ -97,19 +97,59 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
     }
   }, [initialOrder.status]);
 
+  const normalizeItemId = useCallback((value: string) => value.toLowerCase().trim().replace(/\s+/g, "-"), []);
+
   const getTierPrice = useCallback((itemId: string, qty: number): { price: number; pct: number } | null => {
     const itemTiers = tiers.filter((t) => t.itemId === itemId).sort((a, b) => b.minQty - a.minQty);
     const match = itemTiers.find((t) => qty >= t.minQty);
     return match ? { price: match.unitPrice, pct: match.discountPct } : null;
   }, [tiers]);
 
+  const getSuggestedPrice = useCallback((item: Pick<Item, "itemId" | "name" | "category" | "quantity">): { price: number; source: "TIER" | "RULE"; pct?: number } => {
+    const candidates = [normalizeItemId(item.itemId), normalizeItemId(item.name)];
+    for (const candidate of candidates) {
+      const tier = getTierPrice(candidate, item.quantity);
+      if (tier) return { price: tier.price, source: "TIER", pct: tier.pct };
+    }
+
+    const n = item.name.toLowerCase();
+    const c = item.category.toLowerCase();
+    let base = 6;
+
+    if (n.includes("sandwich") || n.includes("turkey") || n.includes("ham") || n.includes("jack")) base = 6;
+    else if (n.includes("tray") || n.includes("platter") || n.includes("plate")) base = 8;
+    else if (n.includes("yogurt") || n.includes("parfait")) base = 5;
+    else if (n.includes("snack")) base = 5.5;
+    else if (n.includes("salad")) base = 7;
+    else if (n.includes("dessert") || n.includes("cookie") || n.includes("brownie")) base = 4;
+    else if (n.includes("water") || n.includes("coffee") || n.includes("juice") || n.includes("beverage")) base = 3;
+    else if (c.includes("grab")) base = 7;
+    else if (c.includes("box")) base = 6;
+
+    let adjusted = base;
+    if (item.quantity >= 15) adjusted = base * 0.93;
+    else if (item.quantity >= 10) adjusted = base * 0.96;
+
+    // Keep pricing in the requested business range.
+    adjusted = Math.min(10, Math.max(3, adjusted));
+    return { price: Number(adjusted.toFixed(2)), source: "RULE" };
+  }, [getTierPrice, normalizeItemId]);
+
+  useEffect(() => {
+    setItems((prev) => prev.map((item) => {
+      if (item.unitPrice > 0) return item;
+      const suggestion = getSuggestedPrice(item);
+      return { ...item, unitPrice: suggestion.price };
+    }));
+  }, [getSuggestedPrice]);
+
   const updateItemField = (idx: number, field: "quantity" | "unitPrice", val: number) => {
     setItems((prev) => {
       const next = [...prev];
       next[idx] = { ...next[idx], [field]: val };
       if (field === "quantity") {
-        const tier = getTierPrice(next[idx].itemId, val);
-        if (tier) next[idx].unitPrice = tier.price;
+        const suggestion = getSuggestedPrice(next[idx]);
+        if (suggestion.price > 0) next[idx].unitPrice = suggestion.price;
       }
       return next;
     });
@@ -133,8 +173,8 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
       quantity: newItemQty,
       unitPrice: 0,
     };
-    const tier = getTierPrice(newItem.itemId, newItem.quantity);
-    if (tier) newItem.unitPrice = tier.price;
+    const suggestion = getSuggestedPrice(newItem);
+    newItem.unitPrice = suggestion.price;
     setItems((prev) => [...prev, newItem]);
     setNewItemName("");
     setNewItemQty(1);
@@ -280,7 +320,24 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
 
       {/* Items + Pricing */}
       <div>
-        <h3 className="text-muted text-xs uppercase tracking-wider mb-3">Items & Pricing</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-muted text-xs uppercase tracking-wider">Items & Pricing</h3>
+          {editable && (
+            <button
+              onClick={() => {
+                setItems((prev) =>
+                  prev.map((item) => {
+                    const suggestion = getSuggestedPrice(item);
+                    return { ...item, unitPrice: suggestion.price };
+                  })
+                );
+              }}
+              className="text-xs text-terracotta hover:underline"
+            >
+              Apply suggested prices
+            </button>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border border-stone/30 rounded-lg overflow-hidden">
             <thead>
@@ -295,7 +352,8 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
             </thead>
             <tbody>
               {items.map((item, idx) => {
-                const tier = getTierPrice(item.itemId, item.quantity);
+                const tier = getTierPrice(normalizeItemId(item.itemId), item.quantity) || getTierPrice(normalizeItemId(item.name), item.quantity);
+                const suggestion = getSuggestedPrice(item);
                 return (
                   <tr key={item.id} className="border-t border-stone/20">
                     <td className="p-3">
@@ -322,17 +380,27 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
                     </td>
                     <td className="p-3 text-right">
                       {editable ? (
-                        <div className="relative inline-block">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted text-xs">$</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={item.unitPrice || ""}
-                            onChange={(e) => updateItemField(idx, "unitPrice", parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
-                            className="w-28 text-right bg-cream border border-stone/40 rounded px-2 py-1 pl-5 focus:outline-none focus:ring-1 focus:ring-terracotta/30"
-                          />
+                        <div className="inline-flex flex-col items-end gap-1">
+                          <div className="relative inline-block">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted text-xs">$</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={item.unitPrice || ""}
+                              onChange={(e) => updateItemField(idx, "unitPrice", parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="w-28 text-right bg-cream border border-stone/40 rounded px-2 py-1 pl-5 focus:outline-none focus:ring-1 focus:ring-terracotta/30"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => updateItemField(idx, "unitPrice", suggestion.price)}
+                            className="text-[10px] text-olive hover:underline"
+                            title={suggestion.source === "TIER" ? "Suggested by quantity tier" : "Suggested by business rule"}
+                          >
+                            Suggested: ${suggestion.price.toFixed(2)} {suggestion.source === "TIER" ? "(tier)" : "(rule)"}
+                          </button>
                         </div>
                       ) : (
                         `$${item.unitPrice.toFixed(2)}`
