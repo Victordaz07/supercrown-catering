@@ -8,6 +8,7 @@ import {
   DollarSign,
   FileText,
   Gift,
+  GitPullRequest,
   LayoutGrid,
   Menu,
   Package,
@@ -87,6 +88,7 @@ export function DashboardShell({
       {
         title: "Administration",
         items: [
+          { label: "Status Requests", href: "/dashboard/status-requests", icon: GitPullRequest, show: isSalesOrAbove },
           { label: "Team", href: "/dashboard/users", icon: Users, show: isMasterOrAdmin },
           { label: "Audit Log", href: "/dashboard/audit", icon: Shield, show: isMasterOrAdmin },
         ],

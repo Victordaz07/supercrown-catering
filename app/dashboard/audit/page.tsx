@@ -19,6 +19,7 @@ const ACTION_COLORS: Record<string, string> = {
 const ENTITY_LABELS: Record<string, string> = {
   User: "User", Order: "Order", Invoice: "Invoice", OrderItem: "Item",
   DeliveryReport: "Delivery Report", InvoiceAdjustment: "Adjustment",
+  OrderStatusRequest: "Status Request",
 };
 
 const PER_PAGE = 50;

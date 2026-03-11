@@ -16,7 +16,8 @@ type AuditEntity =
   | "Invoice"
   | "OrderItem"
   | "DeliveryReport"
-  | "InvoiceAdjustment";
+  | "InvoiceAdjustment"
+  | "OrderStatusRequest";
 
 interface AuditParams {
   userId: string;

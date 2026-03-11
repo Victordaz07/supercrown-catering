@@ -78,6 +78,8 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [assignDriverId, setAssignDriverId] = useState(initialOrder.driverId || "");
   const [assigningDriver, setAssigningDriver] = useState(false);
+  const [statusDraft, setStatusDraft] = useState(initialOrder.status);
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const editable = ["PENDING", "CONFIRMED"].includes(initialOrder.status);
 
@@ -275,6 +277,26 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
       setMsg({ type: "err", text: e instanceof Error ? e.message : "Error generating invoice" });
     } finally {
       setInvoicing(false);
+    }
+  };
+
+  const changeStatus = async (nextStatus: string) => {
+    if (!nextStatus || nextStatus === initialOrder.status) return;
+    setStatusSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/orders/${initialOrder.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to update status");
+      setMsg({ type: "ok", text: `Order status changed to ${nextStatus}` });
+      router.refresh();
+    } catch (e) {
+      setMsg({ type: "err", text: e instanceof Error ? e.message : "Error updating status" });
+    } finally {
+      setStatusSaving(false);
     }
   };
 
@@ -548,6 +570,44 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
+        <div className="w-full flex flex-wrap items-center gap-2 pb-2 border-b border-stone/20">
+          <span className="text-xs text-muted uppercase tracking-wider">Order Status</span>
+          <select
+            value={statusDraft}
+            onChange={(e) => setStatusDraft(e.target.value)}
+            className="bg-cream border border-stone/40 rounded px-2 py-1.5 text-sm"
+          >
+            {["PENDING", "CONFIRMED", "READY", "IN_TRANSIT", "DELIVERED", "CANCELLED"].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <button
+            disabled={statusSaving || statusDraft === initialOrder.status}
+            onClick={() => changeStatus(statusDraft)}
+            className="px-3 py-1.5 bg-[#556B2F] text-white rounded-lg text-sm hover:bg-[#4a5d29] disabled:opacity-50"
+          >
+            {statusSaving ? "Updating..." : "Update Status"}
+          </button>
+          {initialOrder.status === "CONFIRMED" && (
+            <button
+              onClick={() => changeStatus("PENDING")}
+              disabled={statusSaving}
+              className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg text-sm hover:bg-amber-200 disabled:opacity-50"
+            >
+              Move back to PENDING
+            </button>
+          )}
+          {initialOrder.status === "READY" && (
+            <button
+              onClick={() => changeStatus("CONFIRMED")}
+              disabled={statusSaving}
+              className="px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg text-sm hover:bg-amber-200 disabled:opacity-50"
+            >
+              Move back to CONFIRMED
+            </button>
+          )}
+        </div>
+
         {editable && (
           <button onClick={saveChanges} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-dark text-cream rounded-lg hover:bg-dark/90 disabled:opacity-50 transition-all">
@@ -558,8 +618,7 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
 
         {initialOrder.status === "PENDING" && (
           <button onClick={async () => {
-            await fetch(`/api/orders/${initialOrder.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "CONFIRMED" }) });
-            router.refresh();
+            await changeStatus("CONFIRMED");
           }} className="px-4 py-2 bg-olive text-cream rounded-lg hover:bg-olive/90">
             Confirm Order
           </button>
@@ -576,8 +635,7 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
 
         {initialOrder.status === "CONFIRMED" && (
           <button onClick={async () => {
-            await fetch(`/api/orders/${initialOrder.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "READY" }) });
-            router.refresh();
+            await changeStatus("READY");
           }} className="px-4 py-2 bg-stone text-cream rounded-lg hover:bg-stone/90">
             Mark Ready for Delivery
           </button>

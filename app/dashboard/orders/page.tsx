@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import { OrderStatusQuickEdit } from "./OrderStatusQuickEdit";
 
 export default async function OrdersPage() {
+  const session = await getServerSession(authOptions);
+  const role = session?.user?.role || "";
+  const canAuthorizeStatus = role === "MASTER" || role === "ADMIN";
+
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
     include: { items: true },
@@ -15,37 +22,31 @@ export default async function OrdersPage() {
           <p className="text-muted">No orders yet.</p>
         ) : (
           orders.map((order) => (
-            <Link
+            <div
               key={order.id}
-              href={`/dashboard/orders/${order.id}`}
-              className="block bg-white border border-stone/30 rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="bg-white border border-stone/30 rounded-lg p-4 hover:shadow-md transition-shadow"
             >
               <div className="flex justify-between items-start">
-                <div>
+                <Link href={`/dashboard/orders/${order.id}`} className="flex-1 min-w-0">
                   <span className="font-medium text-dark">{order.orderNumber}</span>
                   <span className="text-muted text-sm ml-2">
                     {order.customerName} · {order.totalItems} items
                   </span>
+                  <p className="text-sm text-muted mt-1">
+                    {new Date(order.eventDate).toLocaleDateString()} ·{" "}
+                    {order.deliveryAddress}
+                  </p>
+                </Link>
+
+                <div className="ml-3 flex-shrink-0">
+                  <OrderStatusQuickEdit
+                    orderId={order.id}
+                    currentStatus={order.status}
+                    canAuthorize={canAuthorizeStatus}
+                  />
                 </div>
-                <span
-                  className={`text-xs px-2 py-1 rounded ${
-                    order.status === "PENDING"
-                      ? "bg-amber-100 text-amber-800"
-                      : order.status === "CONFIRMED"
-                      ? "bg-olive/20 text-olive"
-                      : order.status === "READY"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-stone/20 text-muted"
-                  }`}
-                >
-                  {order.status}
-                </span>
               </div>
-              <p className="text-sm text-muted mt-1">
-                {new Date(order.eventDate).toLocaleDateString()} ·{" "}
-                {order.deliveryAddress}
-              </p>
-            </Link>
+            </div>
           ))
         )}
       </div>
