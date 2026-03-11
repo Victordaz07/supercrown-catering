@@ -18,8 +18,8 @@ const userSelect = {
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  if (!session || !["MASTER", "ADMIN"].includes(session.user.role)) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!session || !["MASTER", "ADMIN", "SALES"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -29,7 +29,12 @@ export async function GET(request: Request) {
 
   const where: Record<string, unknown> = {};
 
-  if (session.user.role === "ADMIN") {
+  if (session.user.role === "SALES") {
+    where.role = "DELIVERY";
+    if (roleFilter && roleFilter !== "DELIVERY") {
+      return NextResponse.json([], { status: 200 });
+    }
+  } else if (session.user.role === "ADMIN") {
     where.createdById = session.user.id;
     where.role = { in: ["SALES", "DELIVERY"] };
   }

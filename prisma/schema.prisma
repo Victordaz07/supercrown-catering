@@ -39,6 +39,8 @@ model User {
   approvedAdjustments InvoiceAdjustment[] @relation("ApprovedAdjustments")
   referralsMade       Referral[]          @relation("ReferrerUser")
   referralsReceived   Referral[]          @relation("ReferredUser")
+  driverOrders        Order[]             @relation("DriverOrders")
+  driverRoutes        DeliveryRoute[]     @relation("RouteDriver")
 }
 
 // ─── PRODUCTS (MENU ITEMS) ───────────────────────────────
@@ -89,12 +91,15 @@ model Order {
   discountAmount  Float    @default(0)
   couponId        String?
   coupon          Coupon?  @relation(fields: [couponId], references: [id])
+  driverId        String?
+  driver          User?    @relation("DriverOrders", fields: [driverId], references: [id])
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   items           OrderItem[]
   invoices        Invoice[]
   deliveryReports DeliveryReport[]
+  routeStops      RouteStop[]
 }
 
 model OrderItem {
@@ -194,6 +199,35 @@ model DeliveryPhoto {
   photoType        String         // SIGNED_INVOICE_DRIVER | SIGNED_INVOICE_CLIENT | DAMAGED_ITEM | OTHER
   caption          String?
   createdAt        DateTime       @default(now())
+}
+
+// ─── DELIVERY ROUTES ─────────────────────────────────────
+
+model DeliveryRoute {
+  id           String     @id @default(cuid())
+  date         DateTime
+  driverId     String
+  driver       User       @relation("RouteDriver", fields: [driverId], references: [id])
+  status       String     @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED
+  notes        String?
+  startAddress String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  stops        RouteStop[]
+
+  @@unique([driverId, date])
+}
+
+model RouteStop {
+  id        String         @id @default(cuid())
+  routeId   String
+  route     DeliveryRoute  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id])
+  stopOrder Int
+  status    String         @default("PENDING") // PENDING | EN_ROUTE | DELIVERED | SKIPPED
+  arrivedAt DateTime?
+  notes     String?
 }
 
 // ─── REFERRALS ───────────────────────────────────────────

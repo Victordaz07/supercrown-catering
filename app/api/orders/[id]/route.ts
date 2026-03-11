@@ -87,6 +87,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
   }
 
+  if (body.driverId !== undefined) {
+    orderUpdate.driverId = body.driverId || null;
+    await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: "driverId", oldValue: (order as Record<string, unknown>).driverId as string || "", newValue: body.driverId || "" });
+  }
+
   if (body.eventDate !== undefined) {
     const newDate = new Date(body.eventDate);
     if (order.eventDate.toISOString() !== newDate.toISOString()) {

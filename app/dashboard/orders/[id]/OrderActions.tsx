@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Save, FileText, Tag, Percent, DollarSign, Sparkles } from "lucide-react";
+import { Plus, Trash2, Save, FileText, Tag, Percent, DollarSign, Sparkles, Truck } from "lucide-react";
+
+type Driver = { id: string; name: string };
 
 type Item = {
   id: string;
@@ -35,6 +37,8 @@ type OrderData = {
   discountType: string | null;
   discountValue: number;
   discountAmount: number;
+  driverId?: string | null;
+  driverName?: string | null;
   items: Item[];
   invoices: Array<{ id: string; invoiceNumber: string; pdfPathDriver?: string | null; pdfPathClient?: string | null }>;
 };
@@ -71,6 +75,10 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
   const [newItemQty, setNewItemQty] = useState(1);
   const [showAddItem, setShowAddItem] = useState(false);
 
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [assignDriverId, setAssignDriverId] = useState(initialOrder.driverId || "");
+  const [assigningDriver, setAssigningDriver] = useState(false);
+
   const editable = ["PENDING", "CONFIRMED"].includes(initialOrder.status);
 
   useEffect(() => {
@@ -79,6 +87,15 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
       .then((data) => { if (Array.isArray(data)) setTiers(data); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (initialOrder.status === "READY" || initialOrder.status === "CONFIRMED") {
+      fetch("/api/users?role=DELIVERY")
+        .then((r) => r.json())
+        .then((data) => setDrivers(Array.isArray(data) ? data : data.users || []))
+        .catch(() => {});
+    }
+  }, [initialOrder.status]);
 
   const getTierPrice = useCallback((itemId: string, qty: number): { price: number; pct: number } | null => {
     const itemTiers = tiers.filter((t) => t.itemId === itemId).sort((a, b) => b.minQty - a.minQty);
@@ -499,7 +516,44 @@ export function OrderActions({ order: initialOrder }: { order: OrderData }) {
         )}
 
         {initialOrder.status === "READY" && (
-          <p className="text-sm text-muted py-2">Order is ready for pickup by delivery driver.</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Truck className="w-4 h-4 text-muted" />
+            {initialOrder.driverName ? (
+              <span className="text-sm text-olive">Assigned to: <strong>{initialOrder.driverName}</strong></span>
+            ) : (
+              <>
+                <select
+                  value={assignDriverId}
+                  onChange={(e) => setAssignDriverId(e.target.value)}
+                  className="bg-cream border border-stone/40 rounded px-2 py-1.5 text-sm"
+                >
+                  <option value="">Assign a driver...</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <button
+                  disabled={!assignDriverId || assigningDriver}
+                  onClick={async () => {
+                    setAssigningDriver(true);
+                    try {
+                      await fetch(`/api/orders/${initialOrder.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ driverId: assignDriverId }),
+                      });
+                      router.refresh();
+                    } finally {
+                      setAssigningDriver(false);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-[#556B2F] text-white rounded-lg text-sm hover:bg-[#4a5d29] disabled:opacity-50"
+                >
+                  {assigningDriver ? "Assigning..." : "Assign Driver"}
+                </button>
+              </>
+            )}
+          </div>
         )}
         {initialOrder.status === "DELIVERED" && (
           <p className="text-sm text-olive py-2">&#10003; Delivered</p>

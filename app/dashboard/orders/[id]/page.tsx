@@ -11,7 +11,7 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: true, invoices: true },
+    include: { items: true, invoices: true, driver: { select: { id: true, name: true } } },
   });
   if (!order) notFound();
 
@@ -20,6 +20,8 @@ export default async function OrderDetailPage({
     eventDate: order.eventDate.toISOString(),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
+    driverId: order.driverId || null,
+    driverName: order.driver?.name || null,
     invoices: order.invoices.map((inv) => ({
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,

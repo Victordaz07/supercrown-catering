@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
-import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag, Gift, UtensilsCrossed } from "lucide-react";
+import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag, Gift, UtensilsCrossed, Route } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -60,6 +60,12 @@ export default async function DashboardLayout({
             <Link href="/dashboard/deliveries"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
               <ClipboardCheck className="w-4 h-4" /> Deliveries
+            </Link>
+          )}
+          {isSalesOrAbove && (
+            <Link href="/dashboard/routes"
+              className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
+              <Route className="w-4 h-4" /> Routes
             </Link>
           )}
           {isDelivery && (
