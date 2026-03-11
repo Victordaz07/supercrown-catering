@@ -1,0 +1,382 @@
+[
+  {
+    "id": "turkey-cheese-box-lunch",
+    "name": "Turkey & Cheese",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "A classic combination of freshly sliced turkey breast with cheese, crisp lettuce, ripe tomato, and your choice of mustard or mayo.",
+    "ingredients": ["Turkey Breast", "Cheese", "Lettuce", "Tomato", "Mustard or Mayo"],
+    "shortDescription": "Turkey Breast, Cheese, Lettuce, Tomato, and Mustard or Mayo",
+    "calories": 520,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": true,
+    "isVegetarian": false,
+    "imagePlaceholder": "#C9A07A",
+    "review": {
+      "text": "Perfect for our team lunch. Fresh and delicious every time.",
+      "author": "Sarah M.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "turkey-jalapeno-box-lunch",
+    "name": "Turkey Jalapeño",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Turkey breast with Monterey Jack cheese, lettuce, tomato, and a kick of jalapeño mayonnaise.",
+    "ingredients": ["Turkey Breast", "Monterey Jack Cheese", "Lettuce", "Tomato", "Jalapeño Mayonnaise"],
+    "shortDescription": "Turkey Breast, Monterey Jack Cheese, Lettuce, Tomato, and Jalapeño Mayonnaise",
+    "calories": 545,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": false,
+    "isVegetarian": false,
+    "imagePlaceholder": "#9E7E58",
+    "review": {
+      "text": "The jalapeño mayo adds the perfect spice. Our office favorite!",
+      "author": "Mike R.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "turkey-special-box-lunch",
+    "name": "Turkey Special",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Turkey breast with Monterey Jack, lettuce, tomato, pepperoncini, garlic mayonnaise, and pepper.",
+    "ingredients": ["Turkey Breast", "Monterey Jack Cheese", "Lettuce", "Tomato", "Pepperoncini", "Garlic Mayonnaise", "Pepper"],
+    "shortDescription": "Turkey Breast, Monterey Jack Cheese, Lettuce, Tomato, Pepperoncini, Garlic Mayonnaise, and Pepper",
+    "calories": 580,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": true,
+    "isVegetarian": false,
+    "imagePlaceholder": "#8A9E7A",
+    "review": {
+      "text": "The garlic mayo and pepperoncini make it stand out. Highly recommend.",
+      "author": "Jennifer K.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "mikes-special-box-lunch",
+    "name": "Mike's Special",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Roast beef and turkey breast with Monterey Jack cheese, lettuce, tomato, pepperoncini, garlic mayonnaise, and pepper.",
+    "ingredients": ["Roast Beef", "Turkey Breast", "Monterey Jack Cheese", "Lettuce", "Tomato", "Pepperoncini", "Garlic Mayonnaise", "Pepper"],
+    "shortDescription": "Roast Beef, Turkey Breast, Monterey Jack Cheese, Lettuce, Tomato, Pepperoncini, Garlic Mayonnaise and Pepper",
+    "calories": 620,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": true,
+    "isVegetarian": false,
+    "imagePlaceholder": "#B5612A",
+    "review": {
+      "text": "The combo of roast beef and turkey is unbeatable. Great for larger events.",
+      "author": "David L.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "turkey-pepper-jack-box-lunch",
+    "name": "Turkey Pepper Jack",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Turkey breast with Pepper Jack cheese, lettuce, tomato, onions, and mustard.",
+    "ingredients": ["Turkey Breast", "Pepper Jack Cheese", "Lettuce", "Tomato", "Onions", "Mustard"],
+    "shortDescription": "Turkey Breast, Pepper Jack Cheese, Lettuce, Tomato, Onions, and Mustard",
+    "calories": 535,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": false,
+    "isVegetarian": false,
+    "imagePlaceholder": "#C8B99A",
+    "review": {
+      "text": "Love the kick from the Pepper Jack. Always fresh and satisfying.",
+      "author": "Amanda T.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "turkey-club-box-lunch",
+    "name": "Turkey Club",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Turkey with bacon, lettuce, tomato, and your choice of spread.",
+    "ingredients": ["Turkey", "Bacon", "Lettuce", "Tomato", "Spread of choice"],
+    "shortDescription": "Turkey, Bacon, Lettuce, Tomato with your choice of spread",
+    "calories": 610,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": true,
+    "isVegetarian": false,
+    "imagePlaceholder": "#7A9E8A",
+    "review": {
+      "text": "Classic turkey club done right. Bacon is always crispy.",
+      "author": "Chris B.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "tuna-box-lunch",
+    "name": "Tuna",
+    "category": "Box Lunch",
+    "subcategory": "Sandwiches",
+    "description": "Classic tuna salad with mayonnaise, lettuce, and tomato.",
+    "ingredients": ["Tuna", "Mayonnaise", "Lettuce", "Tomato"],
+    "shortDescription": "Tuna, Mayonnaise, Lettuce, and Tomato",
+    "calories": 480,
+    "allergens": ["gluten", "fish"],
+    "isPopular": false,
+    "isVegetarian": false,
+    "imagePlaceholder": "#A07A5A",
+    "review": {
+      "text": "Creamy tuna, never dry. Perfect for a light lunch option.",
+      "author": "Lisa W.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "pastrami-cheese-grab-n-go",
+    "name": "Pastrami & Cheese",
+    "category": "Grab-N-Go",
+    "subcategory": "Sandwiches",
+    "description": "Tender pastrami and Swiss cheese on your choice of bread.",
+    "ingredients": ["Pastrami", "Swiss Cheese", "Bread of choice"],
+    "shortDescription": "Pastrami and Swiss Cheese on your choice of bread",
+    "calories": 550,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": false,
+    "isVegetarian": false,
+    "imagePlaceholder": "#C9A07A",
+    "review": {
+      "text": "Quick and delicious. Ideal for grab-and-go events.",
+      "author": "Robert P.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "hawaiian-grab-n-go",
+    "name": "Hawaiian",
+    "category": "Grab-N-Go",
+    "subcategory": "Sandwiches",
+    "description": "Ham, pineapple, and cheese on a sweet Hawaiian roll.",
+    "ingredients": ["Ham", "Pineapple", "Cheese", "Hawaiian Roll"],
+    "shortDescription": "Ham, pineapple, and cheese on Hawaiian roll",
+    "calories": 470,
+    "allergens": ["gluten", "dairy"],
+    "isPopular": true,
+    "isVegetarian": false,
+    "imagePlaceholder": "#9E7E58",
+    "review": {
+      "text": "The Hawaiian is always a hit with kids and adults alike.",
+      "author": "Karen S.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "yogurt-parfait-grab-n-go",
+    "name": "Yogurt Parfait",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Vanilla yogurt layered with strawberries or blueberries and granola.",
+    "ingredients": ["Vanilla Yogurt", "Strawberries or Blueberries", "Granola"],
+    "shortDescription": "Vanilla yogurt with strawberries or blueberries and granola",
+    "calories": 280,
+    "allergens": ["dairy", "tree nuts"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#8A9E7A",
+    "review": {
+      "text": "Light, fresh, and perfectly layered. Great healthy option.",
+      "author": "Emily F.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "fruit-cup-grab-n-go",
+    "name": "Fruit Cup",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Seasonal fresh fruit assortment, always ripe and sweet.",
+    "ingredients": ["Seasonal Fresh Fruit"],
+    "shortDescription": "Seasonal fresh fruit assortment",
+    "calories": 120,
+    "allergens": [],
+    "isPopular": true,
+    "isVegetarian": true,
+    "imagePlaceholder": "#B5612A",
+    "review": {
+      "text": "Fresh and refreshing. Perfect addition to any lunch.",
+      "author": "Nicole H.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "snack-pack-seeds-grab-n-go",
+    "name": "Snack Pack (Seeds)",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Seeds, pretzels, and assorted snacks for a satisfying crunch.",
+    "ingredients": ["Seeds", "Pretzels", "Assorted Snacks"],
+    "shortDescription": "Seeds, pretzels, and assorted snacks",
+    "calories": 220,
+    "allergens": ["gluten"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#C8B99A",
+    "review": {
+      "text": "Great variety and perfect portion size. Kids love it.",
+      "author": "Tom G.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "snack-pack-fruits-grab-n-go",
+    "name": "Snack Pack (Fruits)",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Carrots, cheese, almonds, pretzels and more in a convenient pack.",
+    "ingredients": ["Carrots", "Cheese", "Almonds", "Pretzels"],
+    "shortDescription": "Carrots, Cheese, Almonds, Pretzels and more",
+    "calories": 310,
+    "allergens": ["dairy", "tree nuts", "gluten"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#7A9E8A",
+    "review": {
+      "text": "Healthy mix of veggies and protein. Ideal for meetings.",
+      "author": "Patricia M.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "snack-pack-nuts-grab-n-go",
+    "name": "Snack Pack (Nuts)",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Peanuts, cheese, almonds, and pretzels for a protein-packed snack.",
+    "ingredients": ["Peanuts", "Cheese", "Almonds", "Pretzels"],
+    "shortDescription": "Peanuts, Cheese, Almonds, Pretzels",
+    "calories": 380,
+    "allergens": ["dairy", "tree nuts", "peanuts", "gluten"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#A07A5A",
+    "review": {
+      "text": "Satisfying and filling. Great for afternoon breaks.",
+      "author": "Steve D.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "vegetable-plate-grab-n-go",
+    "name": "Vegetable Plate",
+    "category": "Grab-N-Go",
+    "subcategory": "Snacks",
+    "description": "Assorted fresh vegetables with your choice of dip.",
+    "ingredients": ["Assorted Fresh Vegetables", "Dip"],
+    "shortDescription": "Assorted fresh vegetables with dip",
+    "calories": 150,
+    "allergens": ["dairy"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#8A9E7A",
+    "review": {
+      "text": "Always crisp and fresh. The dip is fantastic.",
+      "author": "Linda R.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "snack-tray-box-lunch",
+    "name": "Snack Tray",
+    "category": "Box Lunch",
+    "subcategory": "Snacks",
+    "description": "Grapes, cheese, crackers or cherries, cheese, and cookies for a sweet and savory spread.",
+    "ingredients": ["Grapes", "Cheese", "Crackers or Cherries", "Cookies"],
+    "shortDescription": "Grapes, Cheese, Crackers or Cherries, Cheese, Cookies",
+    "calories": 420,
+    "allergens": ["dairy", "gluten"],
+    "isPopular": true,
+    "isVegetarian": true,
+    "imagePlaceholder": "#B5612A",
+    "review": {
+      "text": "Perfect for casual gatherings. Everyone finds something they love.",
+      "author": "Rachel C.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "caesar-salad-box-lunch",
+    "name": "Caesar Salad",
+    "category": "Box Lunch",
+    "subcategory": "Salads",
+    "description": "Romaine lettuce with tomatoes, croutons, parmesan cheese, and classic Caesar dressing.",
+    "ingredients": ["Romaine Lettuce", "Tomatoes", "Croutons", "Parmesan Cheese", "Caesar Dressing"],
+    "shortDescription": "Romaine Lettuce, Tomatoes, Croutons, Parmesan Cheese, Caesar Dressing",
+    "calories": 380,
+    "allergens": ["gluten", "dairy", "fish"],
+    "isPopular": true,
+    "isVegetarian": true,
+    "imagePlaceholder": "#6B7A5A",
+    "review": {
+      "text": "Best Caesar salad we've had catered. Dressing is perfect.",
+      "author": "Greg N.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "green-salad-box-lunch",
+    "name": "Green Salad",
+    "category": "Box Lunch",
+    "subcategory": "Salads",
+    "description": "Mixed greens with tomatoes, hard-boiled egg, cucumber, pepperoncini, and ranch dressing.",
+    "ingredients": ["Mixed Greens", "Tomatoes", "Hard-boiled Egg", "Cucumber", "Pepperoncini", "Ranch Dressing"],
+    "shortDescription": "Mixed Greens, Tomatoes, Hard-boiled Egg, Cucumber, Pepperoncinis, Ranch Dressing",
+    "calories": 320,
+    "allergens": ["dairy", "egg"],
+    "isPopular": false,
+    "isVegetarian": true,
+    "imagePlaceholder": "#7A9E8A",
+    "review": {
+      "text": "Fresh and satisfying. The ranch dressing is homemade-style.",
+      "author": "Diana K.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "tuna-salad-box-lunch",
+    "name": "Tuna Salad",
+    "category": "Box Lunch",
+    "subcategory": "Salads",
+    "description": "Romaine lettuce with tuna fish, tomatoes, hard-boiled egg, cucumber, pepperoncini, and ranch dressing.",
+    "ingredients": ["Romaine Lettuce", "Tuna Fish", "Tomatoes", "Hard-boiled Egg", "Cucumber", "Pepperoncini", "Ranch Dressing"],
+    "shortDescription": "Romaine Lettuce, Tuna Fish, Tomatoes, Hard-boiled Egg, Cucumber, Pepperoncinis, Ranch Dressing",
+    "calories": 410,
+    "allergens": ["fish", "egg", "dairy"],
+    "isPopular": false,
+    "isVegetarian": false,
+    "imagePlaceholder": "#A07A5A",
+    "review": {
+      "text": "Hearty and flavorful. Great as a main or side.",
+      "author": "Kevin J.",
+      "rating": 5
+    }
+  },
+  {
+    "id": "greek-salad-box-lunch",
+    "name": "Greek Salad",
+    "category": "Box Lunch",
+    "subcategory": "Salads",
+    "description": "Romaine lettuce with cucumbers, tomatoes, bell peppers, onions, Kalamata olives, oil, vinegar, and oregano.",
+    "ingredients": ["Romaine Lettuce", "Cucumbers", "Tomatoes", "Bell Peppers", "Onions", "Kalamata Olives", "Oil", "Vinegar", "Oregano"],
+    "shortDescription": "Romaine Lettuce, Cucumbers, Tomatoes, Bell Peppers, Onions, Kalamata Olives, Oil, Vinegar, Oregano",
+    "calories": 290,
+    "allergens": [],
+    "isPopular": true,
+    "isVegetarian": true,
+    "imagePlaceholder": "#9E7E58",
+    "review": {
+      "text": "Authentic Greek flavors. The olives make it special.",
+      "author": "Helen V.",
+      "rating": 5
+    }
+  }
+]

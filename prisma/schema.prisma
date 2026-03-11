@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ───────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // MASTER | ADMIN | SALES | DELIVERY | CLIENT
+  active       Boolean  @default(true)
+  phone        String?
+  createdById  String?
+  createdBy    User?    @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdUsers User[]   @relation("CreatedByUser")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs          AuditLog[]
+  driverReports      DeliveryReport[]    @relation("DriverReports")
+  reviewedReports    DeliveryReport[]    @relation("ReviewedReports")
+  approvedAdjustments InvoiceAdjustment[] @relation("ApprovedAdjustments")
+}
+
+// ─── ORDERS ──────────────────────────────────────────────
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  deliveryAddress String
+  eventDate       DateTime
+  guestCount      String?
+  budget          String?
+  typeOfService   String?
+  eventDetails    String?
+  status          String   @default("PENDING") // PENDING | CONFIRMED | READY | IN_TRANSIT | DELIVERED | CANCELLED
+  totalItems      Int
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items           OrderItem[]
+  invoices        Invoice[]
+  deliveryReports DeliveryReport[]
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String
+  name      String
+  category  String
+  quantity  Int
+  unitPrice Float  @default(0)
+
+  deliveryItems DeliveryReportItem[]
+}
+
+// ─── INVOICES ────────────────────────────────────────────
+
+model Invoice {
+  id             String    @id @default(cuid())
+  invoiceNumber  String    @unique
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  subtotal       Float     @default(0)
+  taxRate        Float     @default(0)
+  taxAmount      Float     @default(0)
+  total          Float     @default(0)
+  status         String    @default("DRAFT") // DRAFT | SENT | DELIVERED | ADJUSTED | PAID | OVERDUE | VOID | REFUNDED
+  dueDate        DateTime?
+  paidAt         DateTime?
+  paymentMethod  String?   // CASH | CHECK | CARD | TRANSFER | OTHER
+  paymentRef     String?
+  pdfPathDriver  String?
+  pdfPathClient  String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  adjustments InvoiceAdjustment[]
+}
+
+model InvoiceAdjustment {
+  id               String          @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice         @relation(fields: [invoiceId], references: [id])
+  deliveryReportId String?
+  deliveryReport   DeliveryReport? @relation(fields: [deliveryReportId], references: [id])
+  type             String          // CREDIT | DISCOUNT | REFUND
+  reason           String
+  adjustedItems    String?         // JSON: [{itemId, itemName, qty, amount}]
+  amount           Float           // negative value
+  approvedById     String
+  approvedBy       User            @relation("ApprovedAdjustments", fields: [approvedById], references: [id])
+  createdAt        DateTime        @default(now())
+}
+
+// ─── DELIVERY VERIFICATION ──────────────────────────────
+
+model DeliveryReport {
+  id           String    @id @default(cuid())
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id])
+  driverId     String
+  driver       User      @relation("DriverReports", fields: [driverId], references: [id])
+  receiverName String
+  status       String    @default("PENDING_REVIEW") // PENDING_REVIEW | APPROVED | REJECTED | ESCALATED
+  hasIssues    Boolean   @default(false)
+  notes        String?
+  reviewedById String?
+  reviewedBy   User?     @relation("ReviewedReports", fields: [reviewedById], references: [id])
+  reviewNotes  String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  items       DeliveryReportItem[]
+  photos      DeliveryPhoto[]
+  adjustments InvoiceAdjustment[]
+}
+
+model DeliveryReportItem {
+  id               String         @id @default(cuid())
+  deliveryReportId String
+  deliveryReport   DeliveryReport @relation(fields: [deliveryReportId], references: [id], onDelete: Cascade)
+  orderItemId      String
+  orderItem        OrderItem      @relation(fields: [orderItemId], references: [id])
+  expectedQty      Int
+  deliveredQty     Int
+  issue            String?        // MISSING | DAMAGED | WRONG_ITEM | OTHER
+  issueNotes       String?
+}
+
+model DeliveryPhoto {
+  id               String         @id @default(cuid())
+  deliveryReportId String
+  deliveryReport   DeliveryReport @relation(fields: [deliveryReportId], references: [id], onDelete: Cascade)
+  photoUrl         String
+  photoType        String         // SIGNED_INVOICE_DRIVER | SIGNED_INVOICE_CLIENT | DAMAGED_ITEM | OTHER
+  caption          String?
+  createdAt        DateTime       @default(now())
+}
+
+// ─── AUDIT LOG (IMMUTABLE) ──────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // CREATE | UPDATE | DELETE | STATUS_CHANGE | PAYMENT | ADJUSTMENT | DELIVERY_REPORT | LOGIN
+  entity    String   // User | Order | Invoice | OrderItem | DeliveryReport | InvoiceAdjustment
+  entityId  String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  metadata  String?  // JSON
+  createdAt DateTime @default(now())
+}
