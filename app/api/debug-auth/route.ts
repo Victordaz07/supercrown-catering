@@ -42,11 +42,41 @@ export async function GET() {
       })),
       masterFound: !!master,
       passwordMatch,
+      nextauth: {
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? "NOT SET",
+        NEXTAUTH_SECRET_SET: !!process.env.NEXTAUTH_SECRET,
+        VERCEL_URL: process.env.VERCEL_URL ?? "NOT SET",
+        NODE_ENV: process.env.NODE_ENV,
+      },
     });
   } catch (e) {
     return NextResponse.json(
       { error: String(e) },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { email, password } = body;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) return NextResponse.json({ step: "findUser", result: "NOT FOUND" });
+    if (!user.active) return NextResponse.json({ step: "checkActive", result: "INACTIVE" });
+
+    const valid = await compare(password, user.passwordHash);
+    return NextResponse.json({
+      step: "compare",
+      valid,
+      userRole: user.role,
+      userName: user.name,
+    });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
