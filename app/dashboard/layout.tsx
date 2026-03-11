@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
-import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag, Gift } from "lucide-react";
+import { Package, Truck, Users, FileText, Shield, ClipboardCheck, DollarSign, Tag, Gift, UtensilsCrossed } from "lucide-react";
 
 export default async function DashboardLayout({
   children,
@@ -38,6 +38,12 @@ export default async function DashboardLayout({
           </div>
         </div>
         <nav className="max-w-7xl mx-auto mt-4 flex gap-2 md:gap-4 overflow-x-auto pb-1">
+          {isMasterOrAdmin && (
+            <Link href="/dashboard/products"
+              className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">
+              <UtensilsCrossed className="w-4 h-4" /> Products
+            </Link>
+          )}
           {isSalesOrAbove && (
             <Link href="/dashboard/orders"
               className="flex items-center gap-1.5 text-stone hover:text-cream py-2 px-2 border-b-2 border-transparent hover:border-terracotta text-sm whitespace-nowrap transition-colors">

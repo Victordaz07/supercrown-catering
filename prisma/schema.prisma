@@ -41,6 +41,32 @@ model User {
   referralsReceived   Referral[]          @relation("ReferredUser")
 }
 
+// ─── PRODUCTS (MENU ITEMS) ───────────────────────────────
+
+model Product {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  category         String   // Box Lunch | Grab-N-Go
+  subcategory      String   // Sandwiches | Snacks | Salads
+  description      String
+  shortDescription String
+  ingredients      String   // JSON array
+  calories         Int      @default(0)
+  allergens        String   @default("[]") // JSON array
+  isPopular        Boolean  @default(false)
+  isVegetarian     Boolean  @default(false)
+  isAvailable      Boolean  @default(true)
+  imagePlaceholder String   @default("#C9A07A")
+  imageUrl         String?
+  sortOrder        Int      @default(0)
+  reviewText       String?
+  reviewAuthor     String?
+  reviewRating     Int      @default(5)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 // ─── ORDERS ──────────────────────────────────────────────
 
 model Order {

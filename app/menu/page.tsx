@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { MenuContent } from "@/components/sections/MenuContent";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Menu | Super Crown Catering",
