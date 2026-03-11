@@ -6,7 +6,7 @@ Sistema integral de gestion para Super Crown Catering. Manejo de ordenes, factur
 
 - **Framework:** Next.js 14 (App Router)
 - **UI:** React 18, Tailwind CSS
-- **Base de datos:** SQLite con Prisma ORM
+- **Base de datos:** PostgreSQL (Neon) con Prisma ORM
 - **Autenticacion:** NextAuth.js (JWT + Credentials)
 - **PDF:** @react-pdf/renderer
 - **Iconos:** Lucide React
@@ -35,7 +35,9 @@ Abrir [http://localhost:3000](http://localhost:3000).
 ## Variables de Entorno
 
 ```env
-DATABASE_URL="file:./dev.db"
+# Base de datos PostgreSQL (Neon recomendado - neon.tech)
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+
 NEXTAUTH_SECRET="tu-secret-seguro"
 NEXTAUTH_URL="http://localhost:3000"
 
