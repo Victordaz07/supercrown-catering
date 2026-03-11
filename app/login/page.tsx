@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -10,11 +10,12 @@ type Tab = "login" | "register";
 
 function getRedirectByRole(role: string, callbackUrl: string) {
   if (role === "CLIENT") {
-    if (callbackUrl.startsWith("/dashboard")) return "/";
-    return callbackUrl || "/";
+    if (callbackUrl.startsWith("/dashboard")) return "/client";
+    if (!callbackUrl || callbackUrl === "/") return "/client";
+    return callbackUrl;
   }
-  if (role === "DELIVERY") return "/dashboard/delivery";
-  if (role === "SALES" || role === "ADMIN" || role === "MASTER") return "/dashboard/orders";
+  if (role === "DELIVERY") return "/dashboard";
+  if (role === "SALES" || role === "ADMIN" || role === "MASTER") return "/dashboard";
   return "/";
 }
 
@@ -68,11 +69,28 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const res = await signIn("credentials", {
-      email,
+    let res = await signIn("credentials", {
+      email: email.trim().toLowerCase(),
       password,
       redirect: false,
     });
+
+    if (res?.error) {
+      // Backward compatibility: migrate legacy Firebase users on first successful login attempt.
+      const migrateRes = await fetch("/api/auth/migrate-firebase-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (migrateRes.ok) {
+        res = await signIn("credentials", {
+          email: email.trim().toLowerCase(),
+          password,
+          redirect: false,
+        });
+      }
+    }
 
     if (res?.error) {
       setError("Invalid email or password");
@@ -80,8 +98,7 @@ function LoginForm() {
       return;
     }
 
-    const sessionRes = await fetch("/api/auth/session");
-    const sessionData = await sessionRes.json().catch(() => null);
+    const sessionData = await getSession();
     const role = sessionData?.user?.role ?? "CLIENT";
 
     router.push(getRedirectByRole(role, callbackUrl));
@@ -115,7 +132,13 @@ function LoginForm() {
         throw new Error("Account created, but could not sign in");
       }
 
-      router.push(callbackUrl.startsWith("/dashboard") ? "/" : callbackUrl);
+      if (callbackUrl.startsWith("/dashboard")) {
+        router.push("/client");
+      } else if (!callbackUrl || callbackUrl === "/") {
+        router.push("/client");
+      } else {
+        router.push(callbackUrl);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error creating account");

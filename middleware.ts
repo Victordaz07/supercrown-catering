@@ -12,6 +12,9 @@ export default withAuth({
           )
         );
       }
+      if (path.startsWith("/client")) {
+        return !!token && (token.role as string) === "CLIENT";
+      }
       return true;
     },
   },
@@ -19,5 +22,5 @@ export default withAuth({
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/client/:path*"],
 };

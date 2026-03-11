@@ -66,6 +66,13 @@ interface UnassignedOrder {
   driverId?: string | null;
 }
 
+function localDateIso(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function buildMultiStopUrl(stops: RouteStop[], startAddress?: string | null): string {
   if (stops.length === 0) return "";
   const addresses = stops.map((s) => encodeURIComponent(s.order.deliveryAddress));
@@ -83,7 +90,7 @@ function buildMultiStopUrl(stops: RouteStop[], startAddress?: string | null): st
 }
 
 export default function RoutesPage() {
-  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(() => localDateIso(new Date()));
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
   const [unassigned, setUnassigned] = useState<UnassignedOrder[]>([]);

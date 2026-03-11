@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Instagram, Mail, Phone } from "lucide-react";
+import { ArrowRight, BookOpen, Instagram, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export function Footer() {
@@ -153,9 +153,18 @@ export function Footer() {
           <p className="text-muted text-sm">
             &copy; {new Date().getFullYear()} Super Crown Catering. All rights reserved.
           </p>
-          <p className="text-muted/70 text-sm">
-            Made with care
-          </p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/project"
+              className="inline-flex items-center gap-1.5 text-muted/70 hover:text-cream text-sm transition-colors"
+              aria-label="Project brief"
+              title="Project brief"
+            >
+              <BookOpen className="w-4 h-4" />
+              Project brief
+            </Link>
+            <p className="text-muted/70 text-sm">Made with care</p>
+          </div>
         </div>
       </div>
     </footer>

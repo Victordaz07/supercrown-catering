@@ -59,6 +59,10 @@ export function DashboardShell({
   const navGroups = useMemo<NavGroup[]>(
     () => [
       {
+        title: "Overview",
+        items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutGrid, show: isSalesOrAbove || isDelivery }],
+      },
+      {
         title: "Products",
         items: [
           { label: "Products", href: "/dashboard/products", icon: UtensilsCrossed, show: isMasterOrAdmin },
@@ -108,8 +112,15 @@ export function DashboardShell({
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <Link href="/dashboard" className="font-display text-lg md:text-xl flex items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="p-1 rounded-md hover:bg-stone/20 transition-colors"
+            aria-label="Go to dashboard home"
+            title="Dashboard"
+          >
             <LayoutGrid className="w-5 h-5" />
+          </Link>
+          <Link href="/dashboard" className="font-display text-lg md:text-xl">
             Super Crown · Dashboard
           </Link>
         </div>

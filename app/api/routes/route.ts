@@ -3,6 +3,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -11,14 +23,20 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const dateStr = searchParams.get("date");
+  const dateFromStr = searchParams.get("dateFrom");
+  const dateToStr = searchParams.get("dateTo");
   const driverId = searchParams.get("driverId");
   let rangeStart: Date | null = null;
   let rangeEnd: Date | null = null;
 
   const where: Record<string, unknown> = {};
 
-  if (dateStr) {
-    rangeStart = new Date(dateStr);
+  if (dateFromStr && dateToStr) {
+    rangeStart = startOfDay(new Date(dateFromStr));
+    rangeEnd = addDays(startOfDay(new Date(dateToStr)), 1);
+    where.date = { gte: rangeStart, lt: rangeEnd };
+  } else if (dateStr) {
+    rangeStart = startOfDay(new Date(dateStr));
     rangeStart.setHours(0, 0, 0, 0);
     rangeEnd = new Date(rangeStart);
     rangeEnd.setDate(rangeEnd.getDate() + 1);
@@ -39,42 +57,53 @@ export async function GET(request: Request) {
         where: {
           driverId: session.user.id,
           eventDate: { gte: rangeStart, lt: rangeEnd },
-          status: { in: ["READY", "IN_TRANSIT"] },
+          status: { in: ["READY", "IN_TRANSIT", "DELIVERED"] },
         },
-        select: { id: true },
+        select: { id: true, eventDate: true },
       });
 
       if (assignedOrders.length > 0) {
-        const route = await prisma.deliveryRoute.upsert({
-          where: { driverId_date: { driverId: session.user.id, date: rangeStart } },
-          update: {},
-          create: {
-            driverId: session.user.id,
-            date: rangeStart,
-          },
-          select: { id: true },
-        });
-
-        const existingStops = await prisma.routeStop.findMany({
-          where: { routeId: route.id },
-          select: { orderId: true, stopOrder: true },
-        });
-        const existingOrderIds = new Set(existingStops.map((s) => s.orderId));
-        let nextStopOrder =
-          existingStops.length > 0
-            ? Math.max(...existingStops.map((s) => s.stopOrder)) + 1
-            : 0;
-
+        const ordersByDate = new Map<string, Array<{ id: string }>>();
         for (const order of assignedOrders) {
-          if (existingOrderIds.has(order.id)) continue;
-          await prisma.routeStop.create({
-            data: {
-              routeId: route.id,
-              orderId: order.id,
-              stopOrder: nextStopOrder,
+          const day = startOfDay(order.eventDate).toISOString();
+          const list = ordersByDate.get(day) || [];
+          list.push({ id: order.id });
+          ordersByDate.set(day, list);
+        }
+
+        for (const [dayIso, orders] of ordersByDate.entries()) {
+          const dayDate = new Date(dayIso);
+          const route = await prisma.deliveryRoute.upsert({
+            where: { driverId_date: { driverId: session.user.id, date: dayDate } },
+            update: {},
+            create: {
+              driverId: session.user.id,
+              date: dayDate,
             },
+            select: { id: true },
           });
-          nextStopOrder += 1;
+
+          const existingStops = await prisma.routeStop.findMany({
+            where: { routeId: route.id },
+            select: { orderId: true, stopOrder: true },
+          });
+          const existingOrderIds = new Set(existingStops.map((s) => s.orderId));
+          let nextStopOrder =
+            existingStops.length > 0
+              ? Math.max(...existingStops.map((s) => s.stopOrder)) + 1
+              : 0;
+
+          for (const order of orders) {
+            if (existingOrderIds.has(order.id)) continue;
+            await prisma.routeStop.create({
+              data: {
+                routeId: route.id,
+                orderId: order.id,
+                stopOrder: nextStopOrder,
+              },
+            });
+            nextStopOrder += 1;
+          }
         }
       }
     }
@@ -102,7 +131,7 @@ export async function GET(request: Request) {
         orderBy: { stopOrder: "asc" },
       },
     },
-    orderBy: { date: "desc" },
+    orderBy: { date: "asc" },
   });
 
   return NextResponse.json(routes);

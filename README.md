@@ -67,6 +67,27 @@ This is not just an internal dashboard. It is an operational command center that
 
 ## Core Business Modules
 
+## Current Implementation Status (March 2026)
+
+### What is already live
+- Unified login flow with role-aware redirects using NextAuth + Prisma
+- Internal operation hub for Master, Admin, Sales, and Delivery roles
+- Client portal at `/client` with dedicated navigation and protected access
+- Client features available now:
+  - `/client/orders` (order history and status tracking)
+  - `/client/loyalty` (points, tier, referrals)
+  - `/client/offers` (active promotions and coupon visibility)
+- Role security hardening:
+  - Clients cannot access internal `/dashboard` routes
+  - Internal users cannot access client-only area
+- Data consistency updates:
+  - Customer email normalization for order creation/edition (`trim + lowercase`)
+  - Better matching between authenticated client and order history
+
+### Presentation-ready story
+- This release introduces a complete customer-facing experience without exposing repository access.
+- Decision-makers can review both operational control and client self-service in one product demo.
+
 ## Sales and Orders
 - Order intake and editing
 - Status transitions across the fulfillment lifecycle

@@ -100,11 +100,15 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   for (const { key, dbKey } of editableFields) {
     if (body[key] !== undefined) {
       const fieldName = dbKey || key;
+      const nextValue =
+        fieldName === "customerEmail" && typeof body[key] === "string"
+          ? body[key].trim().toLowerCase()
+          : body[key];
       const oldVal = (order as Record<string, unknown>)[fieldName];
-      if (String(oldVal ?? "") !== String(body[key] ?? "")) {
-        await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: fieldName, oldValue: String(oldVal ?? ""), newValue: String(body[key] ?? "") });
+      if (String(oldVal ?? "") !== String(nextValue ?? "")) {
+        await logAudit({ userId: uid, action: "UPDATE", entity: "Order", entityId: id, field: fieldName, oldValue: String(oldVal ?? ""), newValue: String(nextValue ?? "") });
       }
-      orderUpdate[fieldName] = body[key];
+      orderUpdate[fieldName] = nextValue;
     }
   }
 

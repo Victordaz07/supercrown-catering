@@ -12,6 +12,8 @@ export default async function DashboardLayout({
   if (!session) redirect("/login");
 
   const role = session.user.role;
+  if (role === "CLIENT") redirect("/client");
+
   const isMasterOrAdmin = role === "MASTER" || role === "ADMIN";
   const isSalesOrAbove = isMasterOrAdmin || role === "SALES";
   const isDelivery = role === "DELIVERY";

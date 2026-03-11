@@ -44,6 +44,28 @@ interface DeliveryRoute {
   stops: RouteStop[];
 }
 
+function localDateIso(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function startOfWeekMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 function buildMultiStopUrl(stops: RouteStop[], startAddress?: string | null): string {
   if (stops.length === 0) return "";
   const addresses = stops.filter((s) => s.status !== "DELIVERED" && s.status !== "SKIPPED").map((s) => encodeURIComponent(s.order.deliveryAddress));
@@ -62,18 +84,21 @@ function buildMultiStopUrl(stops: RouteStop[], startAddress?: string | null): st
 }
 
 export default function DeliveryPage() {
-  const [route, setRoute] = useState<DeliveryRoute | null>(null);
+  const [routes, setRoutes] = useState<DeliveryRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchRoute = useCallback(async () => {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const res = await fetch(`/api/routes?date=${today}`);
+      const weekStart = startOfWeekMonday(new Date());
+      const weekEnd = addDays(weekStart, 6);
+      const res = await fetch(
+        `/api/routes?dateFrom=${localDateIso(weekStart)}&dateTo=${localDateIso(weekEnd)}`
+      );
       if (res.ok) {
-        const routes: DeliveryRoute[] = await res.json();
-        setRoute(routes.length > 0 ? routes[0] : null);
+        const weeklyRoutes: DeliveryRoute[] = await res.json();
+        setRoutes(weeklyRoutes);
       }
     } catch (e) {
       console.error("Failed to fetch route", e);
@@ -102,9 +127,24 @@ export default function DeliveryPage() {
     }
   };
 
-  const totalStops = route?.stops.length || 0;
-  const completedStops = route?.stops.filter((s) => s.status === "DELIVERED" || s.status === "SKIPPED").length || 0;
+  const stopsForWeek = routes
+    .flatMap((route) =>
+      route.stops.map((stop) => ({
+        ...stop,
+        routeDate: route.date,
+        routeStartAddress: route.startAddress ?? null,
+      }))
+    )
+    .sort((a, b) => {
+      const dateDiff = new Date(a.routeDate).getTime() - new Date(b.routeDate).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return a.stopOrder - b.stopOrder;
+    });
+  const totalStops = stopsForWeek.length;
+  const completedStops = stopsForWeek.filter((s) => s.status === "DELIVERED" || s.status === "SKIPPED").length;
   const progressPct = totalStops > 0 ? Math.round((completedStops / totalStops) * 100) : 0;
+  const weekStart = startOfWeekMonday(new Date());
+  const weekEnd = addDays(weekStart, 6);
 
   const statusColors: Record<string, string> = {
     PENDING: "border-gray-200 bg-white",
@@ -123,25 +163,22 @@ export default function DeliveryPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="font-display text-2xl text-dark">Today&apos;s Deliveries</h1>
+        <h1 className="font-display text-2xl text-dark">This Week&apos;s Deliveries</h1>
         <button onClick={fetchRoute} className="p-2 rounded-lg hover:bg-gray-100">
           <RefreshCw className="w-4 h-4 text-gray-500" />
         </button>
       </div>
       <p className="text-muted text-sm mb-6">
-        {new Date().toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        })}
+        {weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} -{" "}
+        {weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
       </p>
 
       {loading ? (
         <div className="text-center py-16 text-gray-500">Loading route...</div>
-      ) : !route || route.stops.length === 0 ? (
+      ) : stopsForWeek.length === 0 ? (
         <div className="bg-warm border border-dashed border-stone rounded-lg p-12 text-center">
           <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-muted">No route assigned for today.</p>
+          <p className="text-muted">No routes assigned for this week.</p>
           <p className="text-sm text-gray-400 mt-1">Contact your manager to get your route.</p>
         </div>
       ) : (
@@ -159,12 +196,20 @@ export default function DeliveryPage() {
               />
             </div>
             <div className="flex items-center justify-between mt-3">
-              <span className={`text-xs px-2 py-1 rounded-full ${route.status === "COMPLETED" ? "bg-green-100 text-green-700" : route.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"}`}>
-                {route.status}
+              <span className="text-xs px-2 py-1 rounded-full bg-stone/20 text-muted">
+                Weekly overview
               </span>
-              {route.stops.some((s) => s.status === "PENDING" || s.status === "EN_ROUTE") && (
+              {stopsForWeek.some((s) => s.status === "PENDING" || s.status === "EN_ROUTE") && (
                 <a
-                  href={buildMultiStopUrl(route.stops, route.startAddress)}
+                  href={buildMultiStopUrl(
+                    stopsForWeek
+                      .filter((s) => s.status === "PENDING" || s.status === "EN_ROUTE")
+                      .map((s) => ({
+                        ...s,
+                        order: s.order,
+                      })),
+                    stopsForWeek[0]?.routeStartAddress
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm bg-[#556B2F] text-white px-4 py-2 rounded-lg hover:bg-[#4a5d29] flex items-center gap-2"
@@ -178,7 +223,7 @@ export default function DeliveryPage() {
 
           {/* Stops */}
           <div className="space-y-3">
-            {route.stops.map((stop, idx) => {
+            {stopsForWeek.map((stop, idx) => {
               const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.order.deliveryAddress)}`;
               return (
                 <div key={stop.id} className={`rounded-xl border-2 overflow-hidden shadow-sm transition-colors ${statusColors[stop.status]}`}>
@@ -196,6 +241,13 @@ export default function DeliveryPage() {
                           <span className={`w-2 h-2 rounded-full ${statusDot[stop.status]}`} />
                           <span className="text-xs text-gray-500">{stop.status}</span>
                         </div>
+                        <p className="text-xs text-muted">
+                          {new Date(stop.routeDate).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
                         <p className="text-sm text-dark">{stop.order.customerName}</p>
                         <p className="text-xs text-muted mt-0.5">{stop.order.totalItems} items</p>
                       </div>
@@ -247,7 +299,7 @@ export default function DeliveryPage() {
                     <div className="border-t border-gray-200/50 p-3 flex gap-2">
                       {stop.status === "PENDING" && (
                         <button
-                          onClick={() => updateStopStatus(route.id, stop.id, "EN_ROUTE")}
+                          onClick={() => updateStopStatus(stop.routeId, stop.id, "EN_ROUTE")}
                           disabled={updating === stop.id}
                           className="flex-1 bg-blue-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
@@ -257,7 +309,7 @@ export default function DeliveryPage() {
                       )}
                       {stop.status === "EN_ROUTE" && (
                         <button
-                          onClick={() => updateStopStatus(route.id, stop.id, "DELIVERED")}
+                          onClick={() => updateStopStatus(stop.routeId, stop.id, "DELIVERED")}
                           disabled={updating === stop.id}
                           className="flex-1 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
@@ -266,7 +318,7 @@ export default function DeliveryPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => updateStopStatus(route.id, stop.id, "SKIPPED")}
+                        onClick={() => updateStopStatus(stop.routeId, stop.id, "SKIPPED")}
                         disabled={updating === stop.id}
                         className="px-4 py-2.5 rounded-lg text-sm text-red-500 border border-red-200 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1"
                       >

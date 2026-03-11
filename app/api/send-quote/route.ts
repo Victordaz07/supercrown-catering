@@ -14,10 +14,11 @@ export async function POST(request: Request) {
 
     const name = contactInfo?.name?.trim();
     const email = contactInfo?.email?.trim();
+    const normalizedEmail = email?.toLowerCase();
     const deliveryAddress = contactInfo?.deliveryAddress?.trim();
     const eventDateStr = contactInfo?.eventDate?.trim();
 
-    if (!name || !email) {
+    if (!name || !normalizedEmail) {
       return NextResponse.json(
         { error: "Name and email are required" },
         { status: 400 }
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       data: {
         orderNumber,
         customerName: name,
-        customerEmail: email,
+        customerEmail: normalizedEmail,
         customerPhone: contactInfo?.phone?.trim() || null,
         deliveryAddress,
         eventDate,
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
     const emailData = {
       customerName: name,
-      customerEmail: email,
+      customerEmail: normalizedEmail,
       customerPhone: contactInfo?.phone ?? "",
       deliveryAddress,
       eventDate: eventDateStr ?? "",
@@ -109,14 +110,14 @@ export async function POST(request: Request) {
     await resend.emails.send({
       from: "quotes@supercrowncatering.com",
       to: ownerEmail,
-      replyTo: email,
+      replyTo: normalizedEmail,
       subject: `[${orderNumber}] New Quote from ${name} — ${eventDateStr || "TBD"} — ${contactInfo?.guestCount || "—"} guests`,
       html: ownerHtml,
     });
 
     await resend.emails.send({
       from: "hello@supercrowncatering.com",
-      to: email,
+      to: normalizedEmail,
       subject: `We got your request, ${name}! — Super Crown Catering`,
       html: customerHtml,
     });
