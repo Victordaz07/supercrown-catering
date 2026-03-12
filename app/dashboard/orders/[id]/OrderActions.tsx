@@ -668,7 +668,7 @@ export function OrderActions({
           </button>
         )}
 
-        {initialOrder.status === "CONFIRMED" && initialOrder.invoices.length === 0 && (
+        {["CONFIRMED", "READY", "IN_TRANSIT"].includes(initialOrder.status) && initialOrder.invoices.length === 0 && (
           <button onClick={generateInvoice} disabled={invoicing || !allPriced}
             className="flex items-center gap-2 px-4 py-2 bg-terracotta text-cream rounded-lg hover:bg-terracotta/90 disabled:opacity-50 transition-all"
             title={!allPriced ? "Set all item prices first" : ""}>

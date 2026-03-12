@@ -22,6 +22,7 @@ export default async function OrderDetailPage({
       invoices: true,
       deliveryReports: { take: 1, orderBy: { createdAt: "desc" } },
       driver: { select: { id: true, name: true } },
+      sourceQuote: { select: { id: true, quoteNumber: true } },
     },
   });
   if (!order) notFound();
@@ -90,6 +91,18 @@ export default async function OrderDetailPage({
           </div>
         </div>
 
+        {order.sourceQuote && (
+          <div className="mb-6">
+            <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Cotización</h3>
+            <Link
+              href={`/dashboard/sales/quotes/${order.sourceQuote.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-stone/20 text-dark rounded hover:bg-stone/30 text-sm"
+            >
+              📋 Ver cotización {order.sourceQuote.quoteNumber}
+            </Link>
+          </div>
+        )}
+
         <div className="mb-6">
           <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Invoices & PDF</h3>
           {order.invoices.length > 0 ? (
@@ -111,7 +124,7 @@ export default async function OrderDetailPage({
                 </div>
               ))}
             </div>
-          ) : order.status === "CONFIRMED" ? (
+          ) : ["CONFIRMED", "READY", "IN_TRANSIT"].includes(order.status) ? (
             <p className="text-sm text-muted">
               Genera la factura más abajo (botón &quot;Generate Invoice&quot;) para crear y descargar los PDFs.
             </p>

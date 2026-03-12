@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   ClipboardCheck,
   DollarSign,
   FileText,
@@ -60,7 +61,10 @@ export function DashboardShell({
     () => [
       {
         title: "Overview",
-        items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutGrid, show: isSalesOrAbove || isDelivery }],
+        items: [
+          { label: "Dashboard", href: "/dashboard", icon: LayoutGrid, show: isSalesOrAbove || isDelivery },
+          { label: "User Guides", href: "/dashboard/help", icon: BookOpen, show: isSalesOrAbove || isDelivery },
+        ],
       },
       {
         title: "Products",
