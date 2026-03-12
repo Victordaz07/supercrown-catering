@@ -7,8 +7,8 @@ type Props = {
   title: string;
   icon: LucideIcon;
   isCurrentUser: boolean;
-  canDo: string[];
-  cannotDo: string[];
+  canDo: readonly string[];
+  cannotDo: readonly string[];
   menu: string;
   path: string;
 };
