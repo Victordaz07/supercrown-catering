@@ -39,8 +39,8 @@ const TRANSITIONS: Record<string, TransitionRule> = {
     requiresReason: false,
   },
   CONFIRMED: {
-    to: ["IN_PREPARATION", "CANCELLED"],
-    requiredRoles: ["ADMIN", "MASTER"],
+    to: ["IN_PREPARATION", "READY", "READY_FOR_PICKUP", "CANCELLED"],
+    requiredRoles: ["ADMIN", "MASTER", "SALES"],
     requiresApproval: false,
     requiresReason: false,
   },
@@ -120,11 +120,19 @@ export function canTransition(
 
   const toStatus = toOrderStatus(to);
   if (!toStatus || !rule.to.includes(toStatus)) {
-    return { allowed: false, reason: `Transicion ${from}->${to} no permitida` };
+    const allowedList = rule.to.length > 0 ? rule.to.join(", ") : "ninguno";
+    return {
+      allowed: false,
+      reason: `Transicion ${from}->${to} no permitida. Desde ${from} solo puedes pasar a: ${allowedList}.`,
+    };
   }
 
   if (!rule.requiredRoles.includes(userRole)) {
-    return { allowed: false, reason: `Rol ${userRole} no puede ejecutar esta transicion` };
+    const rolesRequired = rule.requiredRoles.join(" o ");
+    return {
+      allowed: false,
+      reason: `Tu rol (${userRole}) no puede ejecutar esta transicion. Se requiere: ${rolesRequired}.`,
+    };
   }
 
   return { allowed: true };

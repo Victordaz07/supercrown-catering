@@ -90,29 +90,33 @@ export default async function OrderDetailPage({
           </div>
         </div>
 
-        {order.invoices.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Invoices</h3>
+        <div className="mb-6">
+          <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Invoices & PDF</h3>
+          {order.invoices.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {order.invoices.map((inv) => (
                 <div key={inv.id} className="flex gap-2">
                   {inv.pdfPathDriver && (
                     <a href={inv.pdfPathDriver} target="_blank" rel="noopener noreferrer"
-                      className="inline-block px-4 py-2 bg-terracotta text-cream rounded hover:bg-terracotta/90 text-sm">
-                      {inv.invoiceNumber} (Driver)
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-cream rounded hover:bg-terracotta/90 text-sm">
+                      📄 {inv.invoiceNumber} (Driver) — Imprimir
                     </a>
                   )}
                   {inv.pdfPathClient && (
                     <a href={inv.pdfPathClient} target="_blank" rel="noopener noreferrer"
-                      className="inline-block px-4 py-2 bg-olive text-cream rounded hover:bg-olive/90 text-sm">
-                      {inv.invoiceNumber} (Client)
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-olive text-cream rounded hover:bg-olive/90 text-sm">
+                      📄 {inv.invoiceNumber} (Client) — Imprimir
                     </a>
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          ) : order.status === "CONFIRMED" ? (
+            <p className="text-sm text-muted">
+              Genera la factura más abajo (botón &quot;Generate Invoice&quot;) para crear y descargar los PDFs.
+            </p>
+          ) : null}
+        </div>
 
         {order.eventDetails && (
           <div className="mb-6 p-4 bg-warm rounded border-l-4 border-terracotta">

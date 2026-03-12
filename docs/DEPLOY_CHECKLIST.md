@@ -44,6 +44,8 @@ Si aún no tienes base de datos:
 2. Copia la connection string
 3. Pégala en `DATABASE_URL` en Vercel
 
+**Importante para Neon + Vercel:** Usa la **pooled connection** (hostname con `-pooler`, ej. `ep-xxx-pooler.us-east-2.aws.neon.tech`). La conexión directa puede fallar en serverless. Añade `&connect_timeout=15` para evitar timeouts en cold start.
+
 ---
 
 ## 3. Backfills (después del primer deploy exitoso)

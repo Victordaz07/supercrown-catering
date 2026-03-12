@@ -733,27 +733,39 @@ export function OrderActions({
   );
 }
 
-const UPSELL_MAP: Record<string, Array<{ name: string; category: string; reason: string }>> = {
+const UPSELL_MAP: Record<string, Array<{ name: string; category: string; reason: string; slug?: string }>> = {
   "Box Lunch": [
-    { name: "Bottled Water", category: "Beverages", reason: "Popular pairing with box lunches" },
-    { name: "Cookie Assortment", category: "Desserts", reason: "Sweet finish for lunch events" },
-    { name: "Fresh Fruit Cup", category: "Grab-N-Go", reason: "Healthy complement" },
+    { name: "Bottled Water", category: "Beverages", reason: "Popular pairing with box lunches", slug: "bottled-water" },
+    { name: "Cookie Assortment", category: "Desserts", reason: "Sweet finish for lunch events", slug: "cookie-assortment" },
+    { name: "Fresh Fruit Cup", category: "Grab-N-Go", reason: "Healthy complement", slug: "fruit-cup-grab-n-go" },
   ],
   "Grab-N-Go": [
-    { name: "Coffee Service", category: "Beverages", reason: "Most requested with grab-n-go" },
-    { name: "Yogurt Parfait", category: "Grab-N-Go", reason: "Popular add-on for breakfast events" },
+    { name: "Coffee Service", category: "Beverages", reason: "Most requested with grab-n-go", slug: "coffee-service" },
+    { name: "Yogurt Parfait", category: "Grab-N-Go", reason: "Popular add-on for breakfast events", slug: "yogurt-parfait-grab-n-go" },
   ],
   "Beverages": [
-    { name: "Pastry Platter", category: "Grab-N-Go", reason: "Perfect with beverages" },
+    { name: "Pastry Platter", category: "Grab-N-Go", reason: "Perfect with beverages", slug: "pastry-platter" },
   ],
   "Desserts": [
-    { name: "Coffee Service", category: "Beverages", reason: "Pairs well with desserts" },
+    { name: "Coffee Service", category: "Beverages", reason: "Pairs well with desserts", slug: "coffee-service" },
   ],
   "Custom": [
-    { name: "Utensil Kit", category: "Supplies", reason: "Essential for custom catering" },
-    { name: "Napkin Bundle", category: "Supplies", reason: "Often needed for events" },
+    { name: "Utensil Kit", category: "Supplies", reason: "Essential for custom catering", slug: "utensil-kit" },
+    { name: "Napkin Bundle", category: "Supplies", reason: "Often needed for events", slug: "napkin-bundle" },
   ],
 };
+
+function suggestPriceFromName(name: string, category: string): number {
+  const n = name.toLowerCase();
+  const c = category.toLowerCase();
+  if (n.includes("yogurt") || n.includes("parfait")) return 5;
+  if (n.includes("fruit") || n.includes("cup")) return 5;
+  if (n.includes("coffee") || n.includes("water") || n.includes("beverage") || n.includes("juice")) return 3;
+  if (n.includes("cookie") || n.includes("dessert") || n.includes("brownie")) return 4;
+  if (n.includes("pastry") || n.includes("platter")) return 6;
+  if (n.includes("utensil") || n.includes("napkin") || c.includes("supplies")) return 2;
+  return 6;
+}
 
 function UpsellSuggestions({ items, tiers, onAdd }: {
   items: Item[];
@@ -770,9 +782,17 @@ function UpsellSuggestions({ items, tiers, onAdd }: {
     for (const s of mapped) {
       if (existingNames.has(s.name.toLowerCase())) continue;
       if (suggestions.find((x) => x.name === s.name)) continue;
-      const itemId = s.name.toLowerCase().replace(/\s+/g, "-");
-      const tier = tiers.filter((t) => t.itemId === itemId).sort((a, b) => a.minQty - b.minQty)[0];
-      suggestions.push({ ...s, price: tier?.unitPrice || 0 });
+      const candidates = [
+        s.slug,
+        s.name.toLowerCase().replace(/\s+/g, "-"),
+      ].filter(Boolean) as string[];
+      let tier: PriceTier | undefined;
+      for (const id of candidates) {
+        tier = tiers.filter((t) => t.itemId === id).sort((a, b) => a.minQty - b.minQty)[0];
+        if (tier) break;
+      }
+      const price = tier?.unitPrice ?? suggestPriceFromName(s.name, s.category);
+      suggestions.push({ ...s, price });
     }
   }
 
@@ -789,7 +809,7 @@ function UpsellSuggestions({ items, tiers, onAdd }: {
             <div>
               <p className="text-sm font-medium text-dark">{s.name}</p>
               <p className="text-[11px] text-muted">{s.reason}</p>
-              {s.price > 0 && <p className="text-[11px] text-terracotta">from ${s.price.toFixed(2)}/unit</p>}
+              <p className="text-[11px] text-terracotta font-medium">from ${s.price.toFixed(2)}/unit</p>
             </div>
             <button onClick={() => onAdd(s.name, s.category, 1)}
               className="ml-2 p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded transition-colors flex-shrink-0">

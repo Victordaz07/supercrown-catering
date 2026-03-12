@@ -52,23 +52,22 @@ async function buildFinancialSnapshot() {
     orderBy: { createdAt: "asc" },
   });
 
-  const invoiced = sum(
-    invoices.map((inv) => inv.total + inv.adjustments.reduce((acc, a) => acc + a.amount, 0)),
-  );
+  const adjSum = (inv: (typeof invoices)[number]) =>
+    (inv.adjustments ?? []).reduce((acc, a) => acc + a.amount, 0);
+
+  const invoiced = sum(invoices.map((inv) => inv.total + adjSum(inv)));
   const paid = sum(
-    invoices
-      .filter((inv) => inv.status === "PAID")
-      .map((inv) => inv.total + inv.adjustments.reduce((acc, a) => acc + a.amount, 0)),
+    invoices.filter((inv) => inv.status === "PAID").map((inv) => inv.total + adjSum(inv)),
   );
   const pending = sum(
     invoices
       .filter((inv) => ["DRAFT", "SENT", "DELIVERED", "ADJUSTED"].includes(inv.status))
-      .map((inv) => inv.total + inv.adjustments.reduce((acc, a) => acc + a.amount, 0)),
+      .map((inv) => inv.total + adjSum(inv)),
   );
   const overdue = sum(
     invoices
       .filter((inv) => inv.status === "OVERDUE")
-      .map((inv) => inv.total + inv.adjustments.reduce((acc, a) => acc + a.amount, 0)),
+      .map((inv) => inv.total + adjSum(inv)),
   );
 
   const trendStart = new Date(startOfToday().getTime() - 6 * DAY);
@@ -80,10 +79,7 @@ async function buildFinancialSnapshot() {
   invoices.forEach((inv) => {
     if (inv.createdAt < trendStart) return;
     const key = inv.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    trendMap.set(
-      key,
-      (trendMap.get(key) ?? 0) + inv.total + inv.adjustments.reduce((acc, a) => acc + a.amount, 0),
-    );
+    trendMap.set(key, (trendMap.get(key) ?? 0) + inv.total + adjSum(inv));
   });
 
   const invoiceByStatus = invoices.reduce<Record<string, number>>((acc, inv) => {

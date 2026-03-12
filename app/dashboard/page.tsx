@@ -18,7 +18,14 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  const overview = await getDashboardOverview(role, session.user.id);
+  let overview: Awaited<ReturnType<typeof getDashboardOverview>>;
+  try {
+    overview = await getDashboardOverview(role, session.user.id);
+  } catch (err) {
+    // Log full error for debugging (visible in Vercel logs)
+    console.error("[Dashboard] getDashboardOverview failed:", err);
+    throw err;
+  }
 
   if (role === "DELIVERY" && overview.delivery) {
     return <DeliveryDashboardView data={overview.delivery} />;
