@@ -1,11 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Check, X, LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
+  User,
+  Truck,
+  ShoppingBag,
+  Shield,
+  Crown,
+  LucideIcon,
+} from "lucide-react";
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  user: User,
+  truck: Truck,
+  "shopping-bag": ShoppingBag,
+  shield: Shield,
+  crown: Crown,
+};
 
 type Props = {
   title: string;
-  icon: LucideIcon;
+  iconName: string;
   isCurrentUser: boolean;
   canDo: readonly string[];
   cannotDo: readonly string[];
@@ -13,7 +32,8 @@ type Props = {
   path: string;
 };
 
-export function HelpGuideCard({ title, icon: Icon, isCurrentUser, canDo, cannotDo, menu, path }: Props) {
+export function HelpGuideCard({ title, iconName, isCurrentUser, canDo, cannotDo, menu, path }: Props) {
+  const Icon = ICON_MAP[iconName] ?? User;
   const [expanded, setExpanded] = useState(isCurrentUser);
 
   return (

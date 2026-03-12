@@ -2,13 +2,13 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { SectionHeader } from "@/components/dashboard/ui/SectionHeader";
-import { BookOpen, User, Truck, ShoppingBag, Shield, Crown } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { HelpGuideCard } from "./HelpGuideCard";
 
 const ROLE_CONFIG = {
   CLIENT: {
     label: "Client",
-    icon: User,
+    iconName: "user",
     color: "olive",
     path: "/client",
     canDo: [
@@ -28,7 +28,7 @@ const ROLE_CONFIG = {
   },
   DELIVERY: {
     label: "Delivery Driver",
-    icon: Truck,
+    iconName: "truck",
     color: "terracotta",
     path: "/dashboard/delivery",
     canDo: [
@@ -50,7 +50,7 @@ const ROLE_CONFIG = {
   },
   SALES: {
     label: "Sales",
-    icon: ShoppingBag,
+    iconName: "shopping-bag",
     color: "terracotta",
     path: "/dashboard",
     canDo: [
@@ -73,7 +73,7 @@ const ROLE_CONFIG = {
   },
   ADMIN: {
     label: "Administrator",
-    icon: Shield,
+    iconName: "shield",
     color: "dark",
     path: "/dashboard",
     canDo: [
@@ -94,7 +94,7 @@ const ROLE_CONFIG = {
   },
   MASTER: {
     label: "Master",
-    icon: Crown,
+    iconName: "crown",
     color: "dark",
     path: "/dashboard",
     canDo: [
@@ -133,12 +133,11 @@ export default async function HelpPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {(Object.entries(ROLE_CONFIG) as [keyof typeof ROLE_CONFIG, (typeof ROLE_CONFIG)[keyof typeof ROLE_CONFIG]][]).map(([roleKey, config]) => {
             const isCurrent = roleKey === role;
-            const Icon = config.icon;
             return (
               <HelpGuideCard
                 key={roleKey}
                 title={config.label}
-                icon={Icon}
+                iconName={config.iconName}
                 isCurrentUser={isCurrent}
                 canDo={config.canDo}
                 cannotDo={config.cannotDo}
