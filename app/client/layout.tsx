@@ -42,6 +42,9 @@ export default async function ClientLayout({
             <Link href="/client/settings" className="hover:text-cream transition-colors">
               Configuración
             </Link>
+            <Link href="/client/help" className="hover:text-cream transition-colors">
+              Help
+            </Link>
           </nav>
         </div>
 
