@@ -2,21 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { SectionHeader } from "@/components/dashboard/ui/SectionHeader";
-import {
-  BookOpen,
-  User,
-  Truck,
-  ShoppingBag,
-  Shield,
-  Crown,
-  ChevronDown,
-  Check,
-  X,
-  MapPin,
-  FileText,
-  Package,
-  CreditCard,
-} from "lucide-react";
+import { BookOpen, User, Truck, ShoppingBag, Shield, Crown } from "lucide-react";
 import { HelpGuideCard } from "./HelpGuideCard";
 
 const ROLE_CONFIG = {
