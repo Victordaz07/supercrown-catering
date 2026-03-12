@@ -3,18 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { transitionOrderStatus } from "@/lib/orders/transitionGateway";
+import { checkPriceLock } from "@/lib/pricing/enforcePriceLock";
 
 type RouteContext = { params: Promise<{ id: string }> };
-const VALID_ORDER_STATUSES = ["PENDING", "CONFIRMED", "READY", "IN_TRANSIT", "DELIVERED", "CANCELLED"] as const;
-
-function isWorkflowTransition(fromStatus: string, toStatus: string): boolean {
-  return (
-    (fromStatus === "PENDING" && toStatus === "CONFIRMED") ||
-    (fromStatus === "CONFIRMED" && toStatus === "READY") ||
-    (fromStatus === "READY" && toStatus === "IN_TRANSIT") ||
-    (fromStatus === "IN_TRANSIT" && toStatus === "DELIVERED")
-  );
-}
 
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await getServerSession(authOptions);
@@ -57,25 +49,32 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const uid = session.user.id;
 
+  const lockCheck = checkPriceLock(order, body as Record<string, unknown>);
+  if (lockCheck.blocked) {
+    return NextResponse.json({ error: lockCheck.message }, { status: 409 });
+  }
+
   // --- Status change ---
   if (body.status) {
-    if (!VALID_ORDER_STATUSES.includes(body.status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    const transitionResult = await transitionOrderStatus(
+      id,
+      body.status,
+      uid,
+      session.user.role,
+      typeof body.reason === "string" ? body.reason : undefined,
+      "api/orders/[id]#PATCH",
+    );
+    if (!transitionResult.success) {
+      return NextResponse.json({ error: transitionResult.error }, { status: 400 });
     }
-    if (
-      session.user.role === "SALES" &&
-      !isWorkflowTransition(order.status, body.status)
-    ) {
+    if (transitionResult.approvalRequired) {
       return NextResponse.json(
         {
-          error:
-            "Manual status changes require ADMIN/MASTER approval. Submit a status request.",
+          message: "Cambio de estado requiere aprobacion",
+          approvalRequestId: transitionResult.approvalRequestId,
         },
-        { status: 403 }
+        { status: 202 },
       );
-    }
-    if (order.status !== body.status) {
-      await logAudit({ userId: uid, action: "STATUS_CHANGE", entity: "Order", entityId: id, field: "status", oldValue: order.status, newValue: body.status });
     }
   }
 
@@ -94,8 +93,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   ];
 
   const orderUpdate: Record<string, unknown> = {};
-
-  if (body.status) orderUpdate.status = body.status;
 
   for (const { key, dbKey } of editableFields) {
     if (body[key] !== undefined) {

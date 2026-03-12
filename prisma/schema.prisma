@@ -7,6 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum OrderStatus {
+  // Legacy-compatible values
+  PENDING
+  CONFIRMED
+  READY
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  // V2 values
+  QUOTE_PENDING
+  IN_PREPARATION
+  READY_FOR_PICKUP
+  UNDER_REVIEW
+  COMPLETED
+  DISPUTED
+}
+
+enum QuoteStatus {
+  REQUESTED
+  PRICING
+  SENT
+  CLIENT_PROPOSED_CHANGES
+  CLIENT_APPROVED
+  CLIENT_REJECTED
+  CONVERTED
+  EXPIRED
+}
+
+enum AdjustmentStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+enum AdjustmentType {
+  ITEM_SHORTAGE
+  ITEM_DAMAGE
+  PRICE_ERROR
+  LATE_DELIVERY
+  OTHER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  ADJUSTED
+  PAID
+  OVERDUE
+  VOID
+  REFUNDED
+}
+
 // ─── USERS ───────────────────────────────────────────────
 
 model User {
@@ -18,6 +73,7 @@ model User {
   active           Boolean  @default(true)
   phone            String?
   marketingConsent Boolean  @default(false)
+  notificationPrefs Json?   // { email, statusUpdates, invoices, quotes }
   createdById      String?
   createdBy    User?    @relation("CreatedByUser", fields: [createdById], references: [id])
   createdUsers User[]   @relation("CreatedByUser")
@@ -43,6 +99,11 @@ model User {
   driverRoutes        DeliveryRoute[]     @relation("RouteDriver")
   statusRequestsMade  OrderStatusRequest[] @relation("StatusRequestBy")
   statusRequestsReviewed OrderStatusRequest[] @relation("StatusRequestReviewBy")
+
+  quotes                       Quote[] @relation("ClientQuotes")
+  adjustmentRequestsRequested  AdjustmentRequest[] @relation("AdjustmentRequestedBy")
+  adjustmentRequestsReviewed  AdjustmentRequest[] @relation("AdjustmentReviewedBy")
+  adjustmentRequestsApplied   AdjustmentRequest[] @relation("AdjustmentAppliedBy")
 }
 
 // ─── PRODUCTS (MENU ITEMS) ───────────────────────────────
@@ -85,7 +146,7 @@ model Order {
   budget          String?
   typeOfService   String?
   eventDetails    String?
-  status          String   @default("PENDING") // PENDING | CONFIRMED | READY | IN_TRANSIT | DELIVERED | CANCELLED
+  status          OrderStatus @default(PENDING)
   totalItems      Int
   notes           String?
   discountType    String?  // PERCENTAGE | FIXED | COUPON
@@ -95,14 +156,102 @@ model Order {
   coupon          Coupon?  @relation(fields: [couponId], references: [id])
   driverId        String?
   driver          User?    @relation("DriverOrders", fields: [driverId], references: [id])
+  sourceQuoteId   String?
+  sourceQuote     Quote?      @relation("QuoteOrder")
+  priceSnapshot   Json?
+  pricingLockedAt DateTime?
+  pricingLockedBy String?
+  stateMachineV   Int?     @default(1)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  items           OrderItem[]
-  invoices        Invoice[]
-  deliveryReports DeliveryReport[]
-  routeStops      RouteStop[]
-  statusRequests  OrderStatusRequest[]
+  items                OrderItem[]
+  invoices             Invoice[]
+  deliveryReports      DeliveryReport[]
+  routeStops           RouteStop[]
+  statusRequests      OrderStatusRequest[]
+  statusHistory        OrderStatusHistory[]
+  adjustmentRequests   AdjustmentRequest[]
+}
+
+// ─── QUOTES (CLIENT APPROVAL LIFECYCLE) ───────────────────
+
+model Quote {
+  id                        String   @id @default(cuid())
+  quoteNumber               String   @unique
+
+  clientId                  String?
+  client                    User?    @relation("ClientQuotes", fields: [clientId], references: [id])
+
+  clientName                String
+  clientEmail               String
+  clientPhone               String?
+
+  deliveryAddress           String
+  eventDate                 DateTime
+  guestCount                String?
+  budget                    String?
+  typeOfService             String?
+  eventDetails              String?
+
+  status                    QuoteStatus @default(REQUESTED)
+  expiresAt                 DateTime?
+
+  activeSalesRevisionNumber   Int     @default(0)
+  approvedSalesRevisionNumber Int?
+
+  orderId                   String?     @unique
+  order                     Order?      @relation("QuoteOrder", fields: [orderId], references: [id])
+
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  revisions                 QuoteRevision[]
+  tokens                    QuoteActionToken[]
+
+  @@index([clientEmail, createdAt])
+  @@index([status, createdAt])
+}
+
+model QuoteRevision {
+  id              String   @id @default(cuid())
+  quoteId         String
+  quote           Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  revisionNumber  Int
+  createdByRole   String   // SALES | CLIENT
+  note            String?
+
+  itemsJson       String   // JSON array snapshot for this revision
+
+  // pricing (populated for SALES revisions)
+  subtotal        Float?
+  taxRate         Float?
+  taxAmount       Float?
+  total           Float?
+
+  createdAt       DateTime @default(now())
+
+  @@unique([quoteId, revisionNumber])
+  @@index([quoteId, createdAt])
+}
+
+model QuoteActionToken {
+  id                String   @id @default(cuid())
+  quoteId           String
+  quote             Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  salesRevisionNumber Int
+  scope             String   // VIEW | APPROVE | REJECT | PROPOSE_CHANGES
+
+  tokenHash         String   @unique
+  expiresAt         DateTime
+  usedAt            DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([quoteId, salesRevisionNumber])
+  @@index([expiresAt])
 }
 
 model OrderStatusRequest {
@@ -123,6 +272,21 @@ model OrderStatusRequest {
   updatedAt        DateTime @updatedAt
 }
 
+model OrderStatusHistory {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus String
+  toStatus   String
+  changedBy  String
+  changedAt  DateTime @default(now())
+  reason     String?
+  engine     String   @default("v1_legacy")
+  type       String   @default("TRANSITION") // TRANSITION | ROLLBACK
+
+  @@index([orderId, changedAt])
+}
+
 model OrderItem {
   id        String @id @default(cuid())
   orderId   String
@@ -139,26 +303,31 @@ model OrderItem {
 // ─── INVOICES ────────────────────────────────────────────
 
 model Invoice {
-  id             String    @id @default(cuid())
-  invoiceNumber  String    @unique
-  orderId        String
-  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  subtotal       Float     @default(0)
-  taxRate        Float     @default(0)
-  taxAmount      Float     @default(0)
-  total          Float     @default(0)
-  status         String    @default("DRAFT") // DRAFT | SENT | DELIVERED | ADJUSTED | PAID | OVERDUE | VOID | REFUNDED
-  dueDate        DateTime?
-  paidAt         DateTime?
-  paymentMethod  String?   // CASH | CHECK | CARD | TRANSFER | OTHER
-  paymentRef     String?
-  pdfPathDriver  String?
-  pdfPathClient  String?
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                     String        @id @default(cuid())
+  invoiceNumber          String        @unique
+  orderId                String
+  order                  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  subtotal               Float         @default(0)
+  taxRate                Float         @default(0)
+  taxAmount              Float         @default(0)
+  total                  Float         @default(0)
+  status                 InvoiceStatus @default(DRAFT)
+  dueDate                DateTime?
+  paidAt                 DateTime?
+  paymentMethod          String?       // CASH | CHECK | CARD | TRANSFER | OTHER
+  paymentRef             String?
+  stripePaymentIntentId  String?       @unique
+  stripeCustomerId       String?
+  receiptUrl             String?
+  paidAmount             Float?
+  pdfPathDriver          String?
+  pdfPathClient          String?
+  notes                  String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
-  adjustments InvoiceAdjustment[]
+  adjustments        InvoiceAdjustment[]
+  adjustmentRequests AdjustmentRequest[]
 }
 
 model InvoiceAdjustment {
@@ -195,9 +364,10 @@ model DeliveryReport {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  items       DeliveryReportItem[]
-  photos      DeliveryPhoto[]
-  adjustments InvoiceAdjustment[]
+  items               DeliveryReportItem[]
+  photos              DeliveryPhoto[]
+  adjustments         InvoiceAdjustment[]
+  adjustmentRequests  AdjustmentRequest[]
 }
 
 model DeliveryReportItem {
@@ -220,6 +390,40 @@ model DeliveryPhoto {
   photoType        String         // SIGNED_INVOICE_DRIVER | SIGNED_INVOICE_CLIENT | DAMAGED_ITEM | OTHER
   caption          String?
   createdAt        DateTime       @default(now())
+}
+
+// ─── ADJUSTMENT REQUESTS (EPIC6) ──────────────────────────
+
+model AdjustmentRequest {
+  id                  String            @id @default(cuid())
+  orderId             String
+  order               Order             @relation(fields: [orderId], references: [id])
+  invoiceId           String?
+  invoice             Invoice?          @relation(fields: [invoiceId], references: [id])
+  deliveryReportId    String?
+  deliveryReport      DeliveryReport?   @relation(fields: [deliveryReportId], references: [id])
+  type                AdjustmentType
+  description         String
+  originalAmount      Float
+  requestedAmount     Float
+  delta               Float
+  status              AdjustmentStatus  @default(PENDING)
+  requestedBy         String
+  requestedByUser     User              @relation("AdjustmentRequestedBy", fields: [requestedBy], references: [id])
+  requestedAt         DateTime          @default(now())
+  reviewedBy         String?
+  reviewedByUser      User?             @relation("AdjustmentReviewedBy", fields: [reviewedBy], references: [id])
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  appliedAt           DateTime?
+  appliedBy           String?
+  appliedByUser       User?             @relation("AdjustmentAppliedBy", fields: [appliedBy], references: [id])
+  invoiceAdjustmentId String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([orderId, status])
+  @@index([invoiceId])
 }
 
 // ─── DELIVERY ROUTES ─────────────────────────────────────
@@ -300,6 +504,26 @@ model Coupon {
   updatedAt   DateTime  @updatedAt
 
   orders Order[]
+}
+
+// ─── EMAIL LOG (EPIC4) ───────────────────────────────────
+
+model EmailLog {
+  id           String   @id @default(cuid())
+  orderId      String?
+  quoteId      String?
+  userId       String?
+  eventType    String
+  recipient    String
+  subject      String
+  status       String   @default("sent") // sent | failed
+  errorMessage String?
+  resendId     String?
+  sentAt       DateTime @default(now())
+
+  @@index([orderId])
+  @@index([quoteId])
+  @@index([recipient, sentAt])
 }
 
 // ─── AUDIT LOG (IMMUTABLE) ──────────────────────────────

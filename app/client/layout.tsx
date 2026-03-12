@@ -27,11 +27,20 @@ export default async function ClientLayout({
             <Link href="/client/orders" className="hover:text-cream transition-colors">
               Mis pedidos
             </Link>
+            <Link href="/client/invoices" className="hover:text-cream transition-colors">
+              Facturas
+            </Link>
+            <Link href="/client/quotes" className="hover:text-cream transition-colors">
+              Quotes
+            </Link>
             <Link href="/client/loyalty" className="hover:text-cream transition-colors">
               Loyalty
             </Link>
             <Link href="/client/offers" className="hover:text-cream transition-colors">
               Ofertas
+            </Link>
+            <Link href="/client/settings" className="hover:text-cream transition-colors">
+              Configuración
             </Link>
           </nav>
         </div>

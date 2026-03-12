@@ -203,6 +203,21 @@ export async function PATCH(
     await logAuditBatch(auditEntries);
   }
 
+  if (status === "SENT" || status === "PAID") {
+    const { sendInvoiceNotification } = await import("@/lib/email/notificationService");
+    const eventType = status === "SENT" ? "invoiceSent" : "invoicePaid";
+    sendInvoiceNotification(id, eventType).catch((err) =>
+      console.error("[Notification] sendInvoiceNotification:", err),
+    );
+  }
+
+  if (status === "PAID" && updated.orderId) {
+    const { attemptOrderClosure } = await import("@/lib/orders/closeOrder");
+    attemptOrderClosure(updated.orderId, session.user.id).catch((err) =>
+      console.error("[AutoClose] Failed:", err),
+    );
+  }
+
   const adjustmentSum = updated.adjustments.reduce((sum, a) => sum + a.amount, 0);
 
   return NextResponse.json({

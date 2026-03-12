@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { executeTransition } from "@/lib/orders/stateMachine";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -85,24 +86,44 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   if (action === "approve") {
-    const updated = await prisma.$transaction(async (tx) => {
-      const requestUpdated = await tx.orderStatusRequest.update({
-        where: { id },
-        data: {
-          status: "APPROVED",
-          reviewNote,
-          reviewedById: session.user.id,
-          reviewedAt: new Date(),
-        },
-      });
+    let updated;
+    try {
+      updated = await prisma.$transaction(async (tx) => {
+        const requestUpdated = await tx.orderStatusRequest.update({
+          where: { id },
+          data: {
+            status: "APPROVED",
+            reviewNote,
+            reviewedById: session.user.id,
+            reviewedAt: new Date(),
+          },
+        });
 
-      await tx.order.update({
-        where: { id: req.orderId },
-        data: { status: req.requestedStatus },
-      });
+        const transitionResult = await executeTransition(
+          req.orderId,
+          req.requestedStatus,
+          session.user.id,
+          session.user.role,
+          reviewNote ?? req.reason ?? undefined,
+          {
+            skipApprovalCheck: true,
+            tx,
+            source: "api/order-status-requests/[id]#approve",
+          },
+        );
 
-      return requestUpdated;
-    });
+        if (!transitionResult.success) {
+          throw new Error(transitionResult.error ?? "No fue posible aplicar la transicion aprobada");
+        }
+
+        return requestUpdated;
+      });
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "No fue posible aprobar la solicitud" },
+        { status: 400 },
+      );
+    }
 
     await logAudit({
       userId: session.user.id,

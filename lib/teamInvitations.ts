@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from "node:crypto";
-import { Resend } from "resend";
+import { resend } from "@/lib/email/resendClient";
 import { prisma } from "@/lib/db";
 
 export type InvitationProvider = "PRISMA" | "FIREBASE";
@@ -15,7 +15,7 @@ type CreateInvitationParams = {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const INVITATION_TTL_HOURS = 48;
-const SIMULATE_MODE = !process.env.RESEND_API_KEY;
+const SIMULATE_MODE = !resend;
 
 function normalizeEmail(email: string): string {
   return String(email).trim().toLowerCase();
@@ -119,12 +119,11 @@ export async function createAndSendTeamInvitation(params: CreateInvitationParams
     },
   });
 
-  if (SIMULATE_MODE) {
+  if (SIMULATE_MODE || !resend) {
     console.log("[TEAM INVITE] Simulated email:", { email, setupUrl, provider: params.provider });
     return { simulated: true, setupUrl };
   }
 
-  const resend = new Resend(process.env.RESEND_API_KEY!);
   await resend.emails.send({
     from: "hello@supercrowncatering.com",
     to: email,

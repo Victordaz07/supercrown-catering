@@ -108,7 +108,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`/api/products/${product.id}/upload-image`, {
+      const res = await fetch(`/api/products/${product.id}/image`, {
         method: "POST",
         body: fd,
       });

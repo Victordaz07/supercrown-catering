@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { transitionOrderStatus } from "@/lib/orders/transitionGateway";
 
 export async function POST(
   request: Request,
@@ -73,9 +74,34 @@ export async function POST(
       },
       include: { items: true },
     });
-    await tx.order.update({ where: { id: orderId }, data: { status: "DELIVERED" } });
     return created;
   });
+
+  if (order.status === "READY" || order.status === "READY_FOR_PICKUP") {
+    const toTransit = await transitionOrderStatus(
+      orderId,
+      "IN_TRANSIT",
+      session.user.id,
+      session.user.role,
+      "Auto-paso previo desde delivery report",
+      "api/deliveries/report/[orderId]#POST",
+    );
+    if (!toTransit.success) {
+      return NextResponse.json({ error: toTransit.error }, { status: 400 });
+    }
+  }
+
+  const toDelivered = await transitionOrderStatus(
+    orderId,
+    "DELIVERED",
+    session.user.id,
+    session.user.role,
+    "Delivery report registrado",
+    "api/deliveries/report/[orderId]#POST",
+  );
+  if (!toDelivered.success) {
+    return NextResponse.json({ error: toDelivered.error }, { status: 400 });
+  }
 
   await logAudit({
     userId: session.user.id,

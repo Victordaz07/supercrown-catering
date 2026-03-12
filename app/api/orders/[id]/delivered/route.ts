@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { transitionOrderStatus } from "@/lib/orders/transitionGateway";
 
 export async function POST(
   request: Request,
@@ -14,10 +14,17 @@ export async function POST(
 
   const { id } = await params;
 
-  await prisma.order.update({
-    where: { id },
-    data: { status: "DELIVERED" },
-  });
+  const transitionResult = await transitionOrderStatus(
+    id,
+    "DELIVERED",
+    session.user.id,
+    session.user.role,
+    undefined,
+    "api/orders/[id]/delivered#POST",
+  );
+  if (!transitionResult.success) {
+    return NextResponse.json({ error: transitionResult.error }, { status: 400 });
+  }
 
   return NextResponse.json({ success: true });
 }

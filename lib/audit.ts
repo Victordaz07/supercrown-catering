@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { adminDb } from "./firebase/admin";
 
 type AuditAction =
   | "CREATE"
@@ -6,9 +7,24 @@ type AuditAction =
   | "DELETE"
   | "STATUS_CHANGE"
   | "PAYMENT"
+  | "PAYMENT_INTENT_CREATED"
+  | "INVOICE_PAID_STRIPE"
+  | "ORDER_AUTO_CLOSED"
   | "ADJUSTMENT"
+  | "ADJUSTMENT_REQUESTED"
+  | "ADJUSTMENT_APPROVED"
+  | "ADJUSTMENT_REJECTED"
+  | "ADJUSTMENT_APPLIED"
   | "DELIVERY_REPORT"
-  | "LOGIN";
+  | "LOGIN"
+  | "QUOTE_SENT"
+  | "QUOTE_APPROVED"
+  | "QUOTE_REJECTED"
+  | "QUOTE_CHANGES_PROPOSED"
+  | "QUOTE_CONVERTED"
+  | "QUOTE_EXPIRED"
+  | "QUOTE_NEW_REVISION"
+  | "PRICE_LOCKED";
 
 type AuditEntity =
   | "User"
@@ -17,7 +33,9 @@ type AuditEntity =
   | "OrderItem"
   | "DeliveryReport"
   | "InvoiceAdjustment"
-  | "OrderStatusRequest";
+  | "OrderStatusRequest"
+  | "Quote"
+  | "AdjustmentRequest";
 
 interface AuditParams {
   userId: string;
@@ -27,6 +45,20 @@ interface AuditParams {
   field?: string;
   oldValue?: string | null;
   newValue?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+type TransitionEngine = "v1_legacy" | "v2_state_machine";
+
+interface TransitionAttemptParams {
+  orderId: string;
+  oldStatus: string | null;
+  newStatus: string;
+  userId: string;
+  reason?: string;
+  source: string;
+  engine: TransitionEngine;
+  featureFlagState: Record<string, boolean>;
   metadata?: Record<string, unknown>;
 }
 
@@ -65,5 +97,39 @@ export async function logAuditBatch(entries: AuditParams[]): Promise<void> {
     });
   } catch (err) {
     console.error("[AuditLog] Failed to write batch:", err);
+  }
+}
+
+export async function logTransitionAttempt(params: TransitionAttemptParams): Promise<void> {
+  const payload = {
+    orderId: params.orderId,
+    oldStatus: params.oldStatus,
+    newStatus: params.newStatus,
+    userId: params.userId,
+    reason: params.reason ?? null,
+    source: params.source,
+    engine: params.engine,
+    featureFlagState: params.featureFlagState,
+    timestamp: new Date().toISOString(),
+    ...(params.metadata ? { metadata: params.metadata } : {}),
+  };
+
+  // Keep compatibility with existing immutable audit table.
+  await logAudit({
+    userId: params.userId,
+    action: "STATUS_CHANGE",
+    entity: "Order",
+    entityId: params.orderId,
+    field: "transitionAttempt",
+    oldValue: params.oldStatus,
+    newValue: params.newStatus,
+    metadata: payload,
+  });
+
+  // Additive Firestore trail required for migration observability.
+  try {
+    await adminDb.collection("auditLog").add(payload);
+  } catch (err) {
+    console.error("[AuditLog] Failed to write transition attempt to Firestore:", err);
   }
 }

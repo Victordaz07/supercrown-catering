@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { OrderActions } from "./OrderActions";
+import PricingDisplay from "@/components/orders/PricingDisplay";
+import { AdjustmentRequestPanel } from "@/components/adjustments/AdjustmentRequestPanel";
+import { OrderClosureChecklist } from "@/components/orders/OrderClosureChecklist";
 
 export default async function OrderDetailPage({
   params,
@@ -14,7 +17,12 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },
-    include: { items: true, invoices: true, driver: { select: { id: true, name: true } } },
+    include: {
+      items: true,
+      invoices: true,
+      deliveryReports: { take: 1, orderBy: { createdAt: "desc" } },
+      driver: { select: { id: true, name: true } },
+    },
   });
   if (!order) notFound();
 
@@ -111,6 +119,45 @@ export default async function OrderDetailPage({
             <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Event Details</h3>
             <p className="text-dark whitespace-pre-wrap">{order.eventDetails}</p>
           </div>
+        )}
+
+        <div className="mb-6">
+          <h3 className="text-muted text-xs uppercase tracking-wider mb-2">Pricing</h3>
+          <PricingDisplay
+            order={{
+              pricingLockedAt: order.pricingLockedAt,
+              pricingLockedBy: order.pricingLockedBy,
+              priceSnapshot: order.priceSnapshot,
+              items: order.items.map((item) => ({
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+              })),
+            }}
+          />
+        </div>
+
+        {["DELIVERED", "UNDER_REVIEW", "DISPUTED", "COMPLETED"].includes(
+          order.status,
+        ) && (
+          <div className="mb-6">
+            <AdjustmentRequestPanel
+              orderId={order.id}
+              invoiceId={order.invoices[0]?.id}
+              deliveryReportId={order.deliveryReports?.[0]?.id ?? undefined}
+              userRole={session?.user?.role || ""}
+            />
+          </div>
+        )}
+
+        {["DELIVERED", "UNDER_REVIEW", "DISPUTED", "COMPLETED"].includes(
+          order.status,
+        ) && (
+          <OrderClosureChecklist
+            orderId={order.id}
+            orderStatus={order.status}
+            userRole={session?.user?.role || ""}
+          />
         )}
 
         <OrderActions order={serialized} viewerRole={session?.user?.role || ""} />

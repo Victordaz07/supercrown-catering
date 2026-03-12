@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { generateInvoiceNumber } from "@/lib/invoiceUtils";
 import { generateInvoicePDFBuffer } from "@/lib/generateInvoicePDF";
 import { logAudit } from "@/lib/audit";
+import { checkPriceLock } from "@/lib/pricing/enforcePriceLock";
+import type { PriceSnapshot } from "@/lib/pricing/lockPrice";
 import path from "path";
 import fs from "fs";
 
@@ -29,6 +31,18 @@ export async function POST(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
+  let body: { itemPrices?: Record<string, number> } = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
+  const lockCheck = checkPriceLock(order, body as Record<string, unknown>);
+  if (lockCheck.blocked) {
+    return NextResponse.json({ error: lockCheck.message }, { status: 409 });
+  }
+
   const existingInvoice = await prisma.invoice.findFirst({
     where: { orderId: id },
   });
@@ -39,37 +53,62 @@ export async function POST(
     );
   }
 
-  let itemPrices: Record<string, number> = {};
-  try {
-    const body = await request.json();
-    itemPrices = body.itemPrices ?? {};
-  } catch {
-    // no body is fine - prices will be 0
-  }
+  // EPIC2+EPIC6: Si la orden tiene priceSnapshot (pricingLockedAt),
+  // la factura se genera desde el snapshot inmutable, no desde items live.
+  // body.itemPrices es ignorado para órdenes con price lock.
+  const useSnapshot = !!order.pricingLockedAt && !!order.priceSnapshot;
 
-  if (Object.keys(itemPrices).length > 0) {
-    for (const item of order.items) {
-      const price = itemPrices[item.id];
-      if (price !== undefined && price > 0) {
-        await prisma.orderItem.update({
-          where: { id: item.id },
-          data: { unitPrice: price },
-        });
+  let subtotal: number;
+  let taxRate: number;
+  let taxAmount: number;
+  let total: number;
+  let itemsForPdf: { id: string; name: string; category: string; quantity: number }[];
+
+  if (useSnapshot) {
+    if (Object.keys(body.itemPrices ?? {}).length > 0) {
+      console.warn(`[Invoice] orderId=${id}: price lock activo, body.itemPrices ignorado`);
+    }
+    const snapshot = order.priceSnapshot as unknown as PriceSnapshot;
+    subtotal = snapshot.subtotal;
+    taxRate = snapshot.taxRate;
+    taxAmount = snapshot.taxAmount;
+    total = snapshot.total;
+    itemsForPdf = snapshot.items.map((it) => ({
+      id: it.orderItemId ?? (it as { productId?: string }).productId ?? "",
+      name: it.name ?? (it as { productName?: string }).productName ?? "",
+      category: it.category ?? "",
+      quantity: it.quantity,
+    }));
+  } else {
+    const itemPrices = body.itemPrices ?? {};
+    if (Object.keys(itemPrices).length > 0) {
+      for (const item of order.items) {
+        const price = itemPrices[item.id];
+        if (price !== undefined && price > 0) {
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { unitPrice: price },
+          });
+        }
       }
     }
+    const updatedItems = await prisma.orderItem.findMany({
+      where: { orderId: id },
+    });
+    subtotal = updatedItems.reduce(
+      (sum, it) => sum + it.unitPrice * it.quantity,
+      0,
+    );
+    taxRate = Number.parseFloat(process.env.TAX_RATE ?? "0");
+    taxAmount = subtotal * taxRate;
+    total = subtotal + taxAmount;
+    itemsForPdf = updatedItems.map((it) => ({
+      id: it.id,
+      name: it.name,
+      category: it.category,
+      quantity: it.quantity,
+    }));
   }
-
-  const updatedItems = await prisma.orderItem.findMany({
-    where: { orderId: id },
-  });
-
-  const subtotal = updatedItems.reduce(
-    (sum, it) => sum + it.unitPrice * it.quantity,
-    0,
-  );
-  const taxRate = 0;
-  const taxAmount = subtotal * taxRate;
-  const total = subtotal + taxAmount;
 
   const invoiceNumber = await generateInvoiceNumber();
   const dueDate = new Date();
@@ -100,7 +139,7 @@ export async function POST(
     customerEmail: order.customerEmail,
     deliveryAddress: order.deliveryAddress,
     eventDate: order.eventDate,
-    items: updatedItems,
+    items: itemsForPdf,
     totalItems: order.totalItems,
   };
 

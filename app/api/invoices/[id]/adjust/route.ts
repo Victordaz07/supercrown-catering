@@ -17,7 +17,18 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { id: invoiceId } = await params;
   const body = await request.json();
-  const { type, reason, deliveryReportId, items, amount } = body;
+  const { type, reason, deliveryReportId, items, amount, orderId, requiresApproval } = body;
+
+  if (orderId && requiresApproval !== false) {
+    return NextResponse.json(
+      {
+        error:
+          "Los ajustes vinculados a órdenes requieren aprobación formal. " +
+          "Usa POST /api/adjustments para crear la solicitud.",
+      },
+      { status: 422 },
+    );
+  }
 
   if (!type || !VALID_TYPES.includes(type)) {
     return NextResponse.json(
@@ -99,8 +110,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   const adjustmentSum = allAdjustmentAmounts.reduce((sum, a) => sum + a, 0);
   const adjustedTotal = invoice.total + adjustmentSum;
 
-  const needsStatusUpdate =
-    invoice.status !== "ADJUSTED" && invoice.status !== "VOID";
+  // VOID already returned above; only update status if not already ADJUSTED
+  const needsStatusUpdate = invoice.status !== "ADJUSTED";
 
   if (needsStatusUpdate) {
     await prisma.invoice.update({

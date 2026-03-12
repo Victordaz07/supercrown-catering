@@ -1,10 +1,27 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { resend } from "@/lib/email/resendClient";
 import { adminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { transitionOrderStatus } from "@/lib/orders/transitionGateway";
+import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const allowedRoles = ["DELIVERY", "ADMIN", "MASTER"];
+    if (!allowedRoles.includes(session.user.role)) {
+      return NextResponse.json(
+        { error: "No tienes permiso para confirmar entregas" },
+        { status: 403 },
+      );
+    }
+
     const body = await request.json();
     const { deliveryId, receivedBy, signature, photoUrl, notes } = body;
 
@@ -24,6 +41,24 @@ export async function POST(request: Request) {
     const deliveryData = deliverySnap.data()!;
     const orderId = deliveryData.orderId as string;
 
+    if (orderId) {
+      const transitionResult = await transitionOrderStatus(
+        orderId,
+        "DELIVERED",
+        session.user.id,
+        session.user.role,
+        "Entrega confirmada por driver",
+        "confirm-delivery",
+      );
+      if (!transitionResult.success) {
+        console.error("[confirm-delivery] Transition failed:", transitionResult.error);
+        return NextResponse.json(
+          { error: transitionResult.error ?? "No se pudo actualizar el estado de la orden" },
+          { status: 400 },
+        );
+      }
+    }
+
     await deliveryRef.update({
       status: "delivered",
       confirmedAt: FieldValue.serverTimestamp(),
@@ -33,17 +68,15 @@ export async function POST(request: Request) {
       notes: notes?.trim() || null,
     });
 
-    if (orderId) {
-      const orderRef = adminDb.collection("orders").doc(orderId);
-      await orderRef.update({ status: "delivered" });
+    if (orderId && resend) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { customerEmail: true, customerName: true },
+      });
+      const clientEmail = order?.customerEmail;
+      const clientName = order?.customerName;
 
-      const orderSnap = await orderRef.get();
-      const orderData = orderSnap.exists ? orderSnap.data()! : {};
-      const clientEmail = orderData.clientEmail as string | undefined;
-      const clientName = orderData.clientName as string | undefined;
-
-      if (process.env.RESEND_API_KEY && clientEmail) {
-        const resend = new Resend(process.env.RESEND_API_KEY);
+      if (clientEmail) {
         await resend.emails.send({
           from: "hello@supercrowncatering.com",
           to: clientEmail,

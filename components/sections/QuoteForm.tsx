@@ -123,7 +123,7 @@ export function QuoteForm() {
         budget: formData.budget || undefined,
         typeOfService: formData.typeOfService || undefined,
       };
-      const res = await fetch("/api/send-quote", {
+      const res = await fetch("/api/quotes/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -15,6 +15,19 @@ export interface EmailData {
   dashboardUrl?: string;
 }
 
+export interface QuoteApprovalEmailData {
+  customerName: string;
+  customerEmail: string;
+  quoteNumber: string;
+  quoteTotal: string;
+  quoteUrl: string;
+  approveUrl: string;
+  proposeChangesUrl: string;
+  rejectUrl: string;
+  itemsHtml: string;
+  expiresInHours: number;
+}
+
 const BUDGET_LABELS: Record<string, string> = {
   "under-10": "Under $10 per person",
   "10-15": "$10 – $15 per person",
@@ -24,6 +37,18 @@ const BUDGET_LABELS: Record<string, string> = {
 
 function formatBudget(value: string): string {
   return BUDGET_LABELS[value] || value || "Not specified";
+}
+
+function escapeHtml(text: string): string {
+  if (!text) return "";
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return String(text).replace(/[&<>"']/g, (m) => map[m]);
 }
 
 export function generateOwnerEmail(data: EmailData): string {
@@ -190,14 +215,49 @@ export function generateCustomerEmail(data: EmailData): string {
 </html>`;
 }
 
-function escapeHtml(text: string): string {
-  if (!text) return "";
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return String(text).replace(/[&<>"']/g, (m) => map[m]);
+export function generateQuoteReadyEmail(data: QuoteApprovalEmailData): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
+    <tr>
+      <td style="background:#2A2520;padding:24px 32px;">
+        <p style="margin:0;font-family:Georgia,serif;font-size:24px;font-weight:bold;color:#fff;">SUPER CROWN</p>
+        <p style="margin:8px 0 0;color:#C9BFA8;font-size:14px;">Quote Ready for Approval</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 32px;">
+        <h1 style="margin:0 0 10px;font-family:Georgia,serif;font-size:24px;color:#2A2520;">Hi ${escapeHtml(data.customerName)}, your quote is ready.</h1>
+        <p style="margin:0;color:#8A8070;line-height:1.6;">
+          Quote <strong>${escapeHtml(data.quoteNumber)}</strong> total: <strong>${escapeHtml(data.quoteTotal)}</strong>.
+          This link expires in ${data.expiresInHours} hours.
+        </p>
+
+        <div style="margin-top:18px;border:1px solid #C9BFA8;border-radius:4px;overflow:hidden;">
+          <div style="background:#F7F4EE;padding:12px 16px;color:#8A8070;font-size:11px;text-transform:uppercase;">Items</div>
+          <div style="padding:12px 16px;color:#2A2520;line-height:1.6;">${data.itemsHtml}</div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <a href="${escapeHtml(data.approveUrl)}" style="display:inline-block;background:#556B2F;color:#fff;padding:12px 18px;text-decoration:none;font-weight:700;border-radius:6px;margin-right:8px;">Approve</a>
+          <a href="${escapeHtml(data.proposeChangesUrl)}" style="display:inline-block;background:#B5612A;color:#fff;padding:12px 18px;text-decoration:none;font-weight:700;border-radius:6px;margin-right:8px;">Edit items</a>
+          <a href="${escapeHtml(data.rejectUrl)}" style="display:inline-block;background:#8A8070;color:#fff;padding:12px 18px;text-decoration:none;font-weight:700;border-radius:6px;">Reject</a>
+        </div>
+
+        <p style="margin-top:18px;color:#8A8070;font-size:13px;">
+          Prefer reviewing first? <a href="${escapeHtml(data.quoteUrl)}" style="color:#B5612A;font-weight:600;text-decoration:none;">View quote</a>
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#2A2520;padding:16px 32px;color:#8A8070;font-size:12px;">
+        Super Crown Catering — Fresh meals for every occasion
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }

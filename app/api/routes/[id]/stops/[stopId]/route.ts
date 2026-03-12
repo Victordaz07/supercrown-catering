@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { transitionOrderStatus } from "@/lib/orders/transitionGateway";
 
 type RouteContext = { params: Promise<{ id: string; stopId: string }> };
 
@@ -28,10 +29,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const updated = await prisma.routeStop.update({ where: { id: stopId }, data });
 
   if (body.status === "DELIVERED") {
-    await prisma.order.update({
-      where: { id: stop.orderId },
-      data: { status: "DELIVERED" },
-    });
+    const transitionResult = await transitionOrderStatus(
+      stop.orderId,
+      "DELIVERED",
+      session.user.id,
+      session.user.role,
+      "Stop marcado como entregado",
+      "api/routes/[id]/stops/[stopId]#PATCH",
+    );
+    if (!transitionResult.success) {
+      return NextResponse.json({ error: transitionResult.error }, { status: 400 });
+    }
 
     const allStops = await prisma.routeStop.findMany({ where: { routeId: stop.routeId } });
     const allDone = allStops.every((s) => s.id === stopId || s.status === "DELIVERED" || s.status === "SKIPPED");
@@ -41,7 +49,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   if (body.status === "EN_ROUTE") {
-    await prisma.order.update({ where: { id: stop.orderId }, data: { status: "IN_TRANSIT" } });
+    const transitionResult = await transitionOrderStatus(
+      stop.orderId,
+      "IN_TRANSIT",
+      session.user.id,
+      session.user.role,
+      "Stop marcado como en ruta",
+      "api/routes/[id]/stops/[stopId]#PATCH",
+    );
+    if (!transitionResult.success) {
+      return NextResponse.json({ error: transitionResult.error }, { status: 400 });
+    }
     await prisma.deliveryRoute.update({ where: { id: stop.routeId }, data: { status: "IN_PROGRESS" } });
   }
 

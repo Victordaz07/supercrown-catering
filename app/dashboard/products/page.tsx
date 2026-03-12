@@ -50,6 +50,7 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const panelImageRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = session?.user?.role && ["MASTER", "ADMIN"].includes(session.user.role);
@@ -62,6 +63,17 @@ export default function ProductsPage() {
     reviewText: "", reviewAuthor: "", reviewRating: 5,
   });
   const [ingredientInput, setIngredientInput] = useState("");
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+
+  const clearPendingImage = useCallback(() => {
+    setPendingImageFile(null);
+    setPendingImagePreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (panelImageRef.current) panelImageRef.current.value = "";
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +112,7 @@ export default function ProductsPage() {
   const groupKeys = Object.keys(grouped).sort();
 
   const openPanel = (product: Product | null) => {
+    clearPendingImage();
     if (product) {
       setForm({
         name: product.name, category: product.category, subcategory: product.subcategory,
@@ -131,6 +144,7 @@ export default function ProductsPage() {
     setShowPanel(false);
     setEditProduct(null);
     setIsNew(false);
+    clearPendingImage();
   };
 
   const addIngredient = () => {
@@ -152,8 +166,22 @@ export default function ProductsPage() {
     try {
       const url = editProduct ? `/api/products/${editProduct.id}` : "/api/products";
       const method = editProduct ? "PATCH" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
       if (!res.ok) throw new Error((await res.json()).error || "Error saving");
+
+      const saved: Product | null = await res.json().catch(() => null);
+
+      if (pendingImageFile) {
+        const productId = editProduct?.id ?? saved?.id;
+        if (productId) {
+          await uploadImage(productId, pendingImageFile);
+        }
+      }
+
       setMsg({ type: "ok", text: editProduct ? "Product updated" : "Product created" });
       closePanel();
       load();
@@ -186,10 +214,23 @@ export default function ProductsPage() {
       const fd = new FormData();
       fd.append("image", file);
       const res = await fetch(`/api/products/${productId}/image`, { method: "POST", body: fd });
-      if (res.ok) { setMsg({ type: "ok", text: "Image uploaded" }); load(); }
+      if (res.ok) { setMsg({ type: "ok", text: "Image uploaded" }); clearPendingImage(); load(); }
       else setMsg({ type: "err", text: "Failed to upload image" });
     } catch { setMsg({ type: "err", text: "Upload error" }); }
     finally { setUploadingId(null); }
+  };
+
+  const removeImage = async (productId: string) => {
+    setUploadingId(productId);
+    try {
+      const res = await fetch(`/api/products/${productId}/image`, { method: "DELETE" });
+      if (res.ok) { setMsg({ type: "ok", text: "Image removed" }); load(); }
+      else setMsg({ type: "err", text: "Failed to remove image" });
+    } catch {
+      setMsg({ type: "err", text: "Remove error" });
+    } finally {
+      setUploadingId(null);
+    }
   };
 
   const availCount = products.filter((p) => p.isAvailable).length;
@@ -436,30 +477,76 @@ export default function ProductsPage() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Image Preview */}
-              {editProduct && (
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                    {editProduct.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={editProduct.imageUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: editProduct.imagePlaceholder }}>
-                        <ImageIcon className="w-6 h-6 text-white/40" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <input ref={fileRef} type="file" accept="image/*" className="hidden"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f && editProduct) uploadImage(editProduct.id, f); }} />
-                    <button onClick={() => fileRef.current?.click()} disabled={uploadingId === editProduct.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2C2C2C] text-white rounded-lg text-xs hover:bg-[#2C2C2C]/80 disabled:opacity-50">
-                      {uploadingId === editProduct.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                      {uploadingId === editProduct.id ? "Uploading..." : "Change Image"}
-                    </button>
-                  </div>
+              {/* Image */}
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                  {pendingImagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pendingImagePreview} alt="" className="w-full h-full object-cover" />
+                  ) : editProduct?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={editProduct.imageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ backgroundColor: editProduct?.imagePlaceholder ?? form.imagePlaceholder }}
+                    >
+                      <ImageIcon className="w-6 h-6 text-white/40" />
+                    </div>
+                  )}
                 </div>
-              )}
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={panelImageRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setPendingImageFile(f);
+                      setPendingImagePreview((prev) => {
+                        if (prev) URL.revokeObjectURL(prev);
+                        return URL.createObjectURL(f);
+                      });
+                    }}
+                  />
+                  <button
+                    onClick={() => panelImageRef.current?.click()}
+                    disabled={!!(editProduct && uploadingId === editProduct.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2C2C2C] text-white rounded-lg text-xs hover:bg-[#2C2C2C]/80 disabled:opacity-50"
+                  >
+                    {editProduct && uploadingId === editProduct.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Upload className="w-3 h-3" />
+                    )}
+                    {pendingImageFile ? "Change Image" : "Select Image"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (pendingImageFile || pendingImagePreview) {
+                        clearPendingImage();
+                        return;
+                      }
+                      if (editProduct?.id && editProduct.imageUrl) {
+                        await removeImage(editProduct.id);
+                      }
+                    }}
+                    disabled={!!(editProduct && uploadingId === editProduct.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    <X className="w-3 h-3" />
+                    {pendingImageFile || pendingImagePreview
+                      ? "Clear selection"
+                      : editProduct?.imageUrl
+                        ? "Remove image"
+                        : "No image"}
+                  </button>
+                </div>
+              </div>
 
               {/* Name */}
               <div>

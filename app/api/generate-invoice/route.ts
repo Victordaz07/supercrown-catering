@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import { Resend } from "resend";
+import { resend } from "@/lib/email/resendClient";
 import { adminDb, adminStorage } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -132,9 +132,8 @@ export async function POST(request: Request) {
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    if (process.env.RESEND_API_KEY && clientEmail) {
+    if (resend && clientEmail) {
       try {
-        const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
           from: "hello@supercrowncatering.com",
           to: clientEmail,

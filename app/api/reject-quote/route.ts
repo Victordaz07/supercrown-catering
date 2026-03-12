@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { resend } from "@/lib/email/resendClient";
 import { adminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -31,8 +31,7 @@ export async function POST(request: Request) {
       reviewedBy: FieldValue.serverTimestamp(),
     });
 
-    if (process.env.RESEND_API_KEY && clientEmail) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
+    if (resend && clientEmail) {
       await resend.emails.send({
         from: "hello@supercrowncatering.com",
         to: clientEmail,

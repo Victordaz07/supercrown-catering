@@ -1,6 +1,6 @@
-import { Resend } from "resend";
 import { NextResponse } from "next/server";
-import { generateOwnerEmail, generateCustomerEmail } from "@/lib/emailTemplates";
+import { resend } from "@/lib/email/resendClient";
+import { generateOwnerEmail, generateCustomerEmail } from "@/lib/email/templates/legacyTemplates";
 import { prisma } from "@/lib/db";
 import { generateOrderNumber } from "@/lib/orderUtils";
 
@@ -98,7 +98,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const resend = new Resend(process.env.RESEND_API_KEY!);
+    if (!resend) {
+      console.warn("[Email] Sin cliente Resend configurado");
+      return NextResponse.json({ success: true, simulated: true, orderId: order.id, orderNumber });
+    }
     const ownerHtml = generateOwnerEmail(emailData);
     const customerHtml = generateCustomerEmail(emailData);
 
