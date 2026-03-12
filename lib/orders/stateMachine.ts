@@ -133,7 +133,6 @@ export function canTransition(
 async function checkPreconditions(
   orderId: string,
   keys: PreconditionKey[],
-  _toStatus?: OrderStatus,
 ): Promise<{ passed: boolean; failed: string[] }> {
   const failed: string[] = [];
 
@@ -251,7 +250,7 @@ export async function executeTransition(
     ...basePreconditions,
     ...extraForTarget.filter((k) => !basePreconditions.includes(k)),
   ];
-  const preconditionResult = await checkPreconditions(orderId, allPreconditions, toStatus);
+  const preconditionResult = await checkPreconditions(orderId, allPreconditions);
   if (!preconditionResult.passed) {
     return {
       success: false,

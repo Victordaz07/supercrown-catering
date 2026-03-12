@@ -44,7 +44,7 @@ export function OrderClosureChecklist({
       } else {
         setData(null);
       }
-    } catch (err) {
+    } catch {
       setError("Error al cargar estado de cierre");
     } finally {
       setLoading(false);
@@ -73,7 +73,7 @@ export function OrderClosureChecklist({
         const json = await res.json();
         setError(json.error || json.reason || "Error al cerrar");
       }
-    } catch (err) {
+    } catch {
       setError("Error al cerrar la orden");
     } finally {
       setClosing(false);
