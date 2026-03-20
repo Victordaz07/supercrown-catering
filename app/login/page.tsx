@@ -69,40 +69,47 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    let res = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-    });
-
-    if (res?.error) {
-      // Backward compatibility: migrate legacy Firebase users on first successful login attempt.
-      const migrateRes = await fetch("/api/auth/migrate-firebase-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+    try {
+      let res = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
       });
 
-      if (migrateRes.ok) {
-        res = await signIn("credentials", {
-          email: email.trim().toLowerCase(),
-          password,
-          redirect: false,
+      if (res?.error) {
+        // Backward compatibility: migrate legacy Firebase users on first successful login attempt.
+        const migrateRes = await fetch("/api/auth/migrate-firebase-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
         });
+
+        if (migrateRes.ok) {
+          res = await signIn("credentials", {
+            email: email.trim().toLowerCase(),
+            password,
+            redirect: false,
+          });
+        }
       }
-    }
 
-    if (res?.error) {
-      setError("Invalid email or password");
+      if (res?.error) {
+        setError("Invalid email or password");
+        return;
+      }
+
+      // Let the server pick up the new session cookie before reading role (avoids race with middleware).
+      router.refresh();
+      const sessionData = await getSession();
+      const role = sessionData?.user?.role ?? "CLIENT";
+
+      router.push(getRedirectByRole(role, callbackUrl));
+      router.refresh();
+    } catch {
+      setError("Could not sign in. Check your connection and try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const sessionData = await getSession();
-    const role = sessionData?.user?.role ?? "CLIENT";
-
-    router.push(getRedirectByRole(role, callbackUrl));
-    router.refresh();
   };
 
   const handleRegister = async (e: React.FormEvent) => {
