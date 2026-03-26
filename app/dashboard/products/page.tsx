@@ -6,6 +6,10 @@ import {
   Plus, Trash2, Edit2, Eye, EyeOff, Star, Leaf, Image as ImageIcon,
   Save, X, Search, Loader2, Upload, ChevronRight, Package,
 } from "lucide-react";
+import {
+  compressProductImageForUpload,
+  INLINE_UPLOAD_TARGET_BYTES,
+} from "@/lib/compress-product-image";
 
 type Product = {
   id: string;
@@ -221,17 +225,29 @@ export default function ProductsPage() {
   const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 
   const uploadImage = async (productId: string, file: File): Promise<boolean> => {
-    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-      setMsg({
-        type: "err",
-        text: "La imagen supera 4 MB. Comprímela o usa un archivo más pequeño (límite de Vercel).",
-      });
-      return false;
-    }
     setUploadingId(productId);
     try {
+      let toUpload = file;
+      if (file.size > INLINE_UPLOAD_TARGET_BYTES) {
+        try {
+          toUpload = await compressProductImageForUpload(file);
+        } catch (e) {
+          setMsg({
+            type: "err",
+            text: e instanceof Error ? e.message : "Error al optimizar la imagen",
+          });
+          return false;
+        }
+      }
+      if (toUpload.size > MAX_IMAGE_UPLOAD_BYTES) {
+        setMsg({
+          type: "err",
+          text: "La imagen supera 4 MB incluso tras optimizar. Prueba con otra foto.",
+        });
+        return false;
+      }
       const fd = new FormData();
-      fd.append("image", file);
+      fd.append("image", toUpload);
       const res = await fetch(`/api/products/${productId}/image`, { method: "POST", body: fd });
       if (res.ok) {
         setMsg({ type: "ok", text: "Image uploaded" });
