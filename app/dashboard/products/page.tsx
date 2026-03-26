@@ -178,7 +178,11 @@ export default function ProductsPage() {
       if (pendingImageFile) {
         const productId = editProduct?.id ?? saved?.id;
         if (productId) {
-          await uploadImage(productId, pendingImageFile);
+          const imageOk = await uploadImage(productId, pendingImageFile);
+          if (!imageOk) {
+            load();
+            return;
+          }
         }
       }
 
@@ -208,16 +212,33 @@ export default function ProductsPage() {
     load();
   };
 
-  const uploadImage = async (productId: string, file: File) => {
+  const uploadImage = async (productId: string, file: File): Promise<boolean> => {
     setUploadingId(productId);
     try {
       const fd = new FormData();
       fd.append("image", file);
       const res = await fetch(`/api/products/${productId}/image`, { method: "POST", body: fd });
-      if (res.ok) { setMsg({ type: "ok", text: "Image uploaded" }); clearPendingImage(); load(); }
-      else setMsg({ type: "err", text: "Failed to upload image" });
-    } catch { setMsg({ type: "err", text: "Upload error" }); }
-    finally { setUploadingId(null); }
+      if (res.ok) {
+        setMsg({ type: "ok", text: "Image uploaded" });
+        clearPendingImage();
+        load();
+        return true;
+      }
+      let detail = "No se pudo subir la imagen";
+      try {
+        const j = (await res.json()) as { error?: string };
+        if (j.error) detail = j.error;
+      } catch {
+        /* ignore */
+      }
+      setMsg({ type: "err", text: detail });
+      return false;
+    } catch {
+      setMsg({ type: "err", text: "Error de red al subir la imagen" });
+      return false;
+    } finally {
+      setUploadingId(null);
+    }
   };
 
   const removeImage = async (productId: string) => {
