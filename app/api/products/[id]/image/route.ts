@@ -99,10 +99,11 @@ export async function POST(request: Request, { params }: RouteContext) {
     );
   }
 
-  const maxBytes = 5 * 1024 * 1024;
+  // Vercel serverless request body limit is ~4.5MB including multipart overhead
+  const maxBytes = 4 * 1024 * 1024;
   if (file.size > maxBytes) {
     return NextResponse.json(
-      { error: "Image too large. Max size is 5MB." },
+      { error: "Imagen demasiado grande. Máximo 4 MB (límite de alojamiento)." },
       { status: 413 }
     );
   }

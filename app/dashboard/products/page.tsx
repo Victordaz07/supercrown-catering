@@ -120,7 +120,9 @@ export default function ProductsPage() {
         ingredients: parseJson(product.ingredients), calories: product.calories,
         allergens: parseJson(product.allergens), isPopular: product.isPopular,
         isVegetarian: product.isVegetarian, imagePlaceholder: product.imagePlaceholder,
-        imageUrl: product.imageUrl || "", reviewText: product.reviewText || "",
+        // Never put imageUrl (can be a huge data: URL) into form — it would blow PATCH JSON and cause 413 on Vercel.
+        imageUrl: "",
+        reviewText: product.reviewText || "",
         reviewAuthor: product.reviewAuthor || "", reviewRating: product.reviewRating,
       });
       setEditProduct(product);
@@ -166,10 +168,13 @@ export default function ProductsPage() {
     try {
       const url = editProduct ? `/api/products/${editProduct.id}` : "/api/products";
       const method = editProduct ? "PATCH" : "POST";
+      // Omit imageUrl: large data URLs must not be sent here (Vercel body limit → 413). Images use POST /api/products/:id/image.
+      const savePayload = { ...form };
+      delete savePayload.imageUrl;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(savePayload),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error saving");
 
@@ -212,7 +217,17 @@ export default function ProductsPage() {
     load();
   };
 
+  /** Vercel serverless request body limit is ~4.5MB; stay under it. */
+  const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
+
   const uploadImage = async (productId: string, file: File): Promise<boolean> => {
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setMsg({
+        type: "err",
+        text: "La imagen supera 4 MB. Comprímela o usa un archivo más pequeño (límite de Vercel).",
+      });
+      return false;
+    }
     setUploadingId(productId);
     try {
       const fd = new FormData();
