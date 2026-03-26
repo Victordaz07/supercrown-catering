@@ -169,8 +169,8 @@ export default function ProductsPage() {
       const url = editProduct ? `/api/products/${editProduct.id}` : "/api/products";
       const method = editProduct ? "PATCH" : "POST";
       // Omit imageUrl: large data URLs must not be sent here (Vercel body limit → 413). Images use POST /api/products/:id/image.
-      const savePayload = { ...form };
-      delete savePayload.imageUrl;
+      const { imageUrl: _omitImageUrl, ...savePayload } = form;
+      void _omitImageUrl;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
