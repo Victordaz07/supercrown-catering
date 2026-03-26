@@ -31,6 +31,8 @@ type Product = {
   reviewText: string | null;
   reviewAuthor: string | null;
   reviewRating: number;
+  /** JSON array of extra image URLs */
+  galleryUrls?: string;
 };
 
 const CATEGORIES = ["Box Lunch", "Grab-N-Go"];
@@ -39,6 +41,16 @@ const ALLERGEN_OPTIONS = ["gluten", "dairy", "egg", "fish", "peanuts", "tree nut
 
 function parseJson(str: string): string[] {
   try { return JSON.parse(str); } catch { return []; }
+}
+
+function parseGalleryJson(raw: string | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v) ? v.filter((u): u is string => typeof u === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export default function ProductsPage() {
@@ -55,7 +67,10 @@ export default function ProductsPage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const panelImageRef = useRef<HTMLInputElement>(null);
+  const panelGalleryRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [galleryList, setGalleryList] = useState<string[]>([]);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const isAdmin = session?.user?.role && ["MASTER", "ADMIN"].includes(session.user.role);
 
@@ -88,6 +103,14 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!editProduct) return;
+    const p = products.find((x) => x.id === editProduct.id);
+    if (p?.galleryUrls !== undefined) {
+      setGalleryList(parseGalleryJson(p.galleryUrls));
+    }
+  }, [products, editProduct]);
 
   useEffect(() => {
     if (msg) {
@@ -129,6 +152,7 @@ export default function ProductsPage() {
         reviewText: product.reviewText || "",
         reviewAuthor: product.reviewAuthor || "", reviewRating: product.reviewRating,
       });
+      setGalleryList(parseGalleryJson(product.galleryUrls));
       setEditProduct(product);
       setIsNew(false);
     } else {
@@ -138,6 +162,7 @@ export default function ProductsPage() {
         allergens: [], isPopular: false, isVegetarian: false,
         imagePlaceholder: "#C9A07A", imageUrl: "", reviewText: "", reviewAuthor: "", reviewRating: 5,
       });
+      setGalleryList([]);
       setEditProduct(null);
       setIsNew(true);
     }
@@ -150,6 +175,7 @@ export default function ProductsPage() {
     setShowPanel(false);
     setEditProduct(null);
     setIsNew(false);
+    setGalleryList([]);
     clearPendingImage();
   };
 
@@ -282,6 +308,73 @@ export default function ProductsPage() {
       setMsg({ type: "err", text: "Remove error" });
     } finally {
       setUploadingId(null);
+    }
+  };
+
+  const uploadGalleryPhoto = async (file: File) => {
+    if (!editProduct) return;
+    setUploadingGallery(true);
+    try {
+      let toUpload = file;
+      if (file.size > INLINE_UPLOAD_TARGET_BYTES) {
+        try {
+          toUpload = await compressProductImageForUpload(file);
+        } catch (e) {
+          setMsg({
+            type: "err",
+            text: e instanceof Error ? e.message : "Error al optimizar la imagen",
+          });
+          return;
+        }
+      }
+      if (toUpload.size > MAX_IMAGE_UPLOAD_BYTES) {
+        setMsg({ type: "err", text: "La imagen supera 4 MB." });
+        return;
+      }
+      const fd = new FormData();
+      fd.append("image", toUpload);
+      const res = await fetch(`/api/products/${editProduct.id}/gallery`, { method: "POST", body: fd });
+      if (!res.ok) {
+        let detail = "No se pudo añadir la foto";
+        try {
+          const j = (await res.json()) as { error?: string };
+          if (j.error) detail = j.error;
+        } catch { /* ignore */ }
+        setMsg({ type: "err", text: detail });
+        return;
+      }
+      const j = (await res.json()) as { galleryUrls?: string[] };
+      if (j.galleryUrls) setGalleryList(j.galleryUrls);
+      setMsg({ type: "ok", text: "Foto añadida a la galería" });
+      load();
+    } catch {
+      setMsg({ type: "err", text: "Error de red" });
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryPhoto = async (url: string) => {
+    if (!editProduct) return;
+    setUploadingGallery(true);
+    try {
+      const res = await fetch(`/api/products/${editProduct.id}/gallery`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        const j = (await res.json()) as { galleryUrls?: string[] };
+        if (j.galleryUrls) setGalleryList(j.galleryUrls);
+        setMsg({ type: "ok", text: "Foto eliminada" });
+        load();
+      } else {
+        setMsg({ type: "err", text: "No se pudo eliminar la foto" });
+      }
+    } catch {
+      setMsg({ type: "err", text: "Error de red" });
+    } finally {
+      setUploadingGallery(false);
     }
   };
 
@@ -599,6 +692,55 @@ export default function ProductsPage() {
                   </button>
                 </div>
               </div>
+
+              {editProduct && (
+                <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/80">
+                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Extra photos (menu modal gallery)
+                  </label>
+                  <p className="text-[11px] text-gray-400 mt-0.5 mb-2">
+                    Shown in the public product popup together with the main image. Save the product first; then add more shots here.
+                  </p>
+                  <input
+                    ref={panelGalleryRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingGallery}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = "";
+                      if (f) void uploadGalleryPhoto(f);
+                    }}
+                  />
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {galleryList.map((url) => (
+                      <div key={url} className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 group">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => void removeGalleryPhoto(url)}
+                          disabled={uploadingGallery}
+                          className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs transition-opacity"
+                          aria-label="Remove photo"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => panelGalleryRef.current?.click()}
+                    disabled={uploadingGallery}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {uploadingGallery ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                    Add gallery photo
+                  </button>
+                </div>
+              )}
 
               {/* Name */}
               <div>

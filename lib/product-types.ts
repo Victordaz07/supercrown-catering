@@ -19,6 +19,8 @@ export interface Product {
   imagePlaceholder: string;
   /** Image URL in Firebase Storage (takes priority over menuImageMap) */
   imageUrl?: string | null;
+  /** JSON string in DB: extra gallery image URLs for the public modal */
+  galleryUrls?: string;
   /** If false, item is not shown on the public menu */
   isAvailable: boolean;
   /** Order within the subcategory */

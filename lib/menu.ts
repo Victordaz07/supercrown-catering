@@ -19,6 +19,8 @@ export interface MenuItem {
   isPopular: boolean;
   isVegetarian: boolean;
   imagePlaceholder: string;
+  /** Extra photos for detail modal (main card still uses imageUrl or fallback map). */
+  galleryUrls?: string[];
   review: MenuItemReview;
 }
 

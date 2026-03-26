@@ -37,6 +37,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   if (body.ingredients !== undefined) data.ingredients = JSON.stringify(body.ingredients);
   if (body.allergens !== undefined) data.allergens = JSON.stringify(body.allergens);
+  if (body.galleryUrls !== undefined) {
+    data.galleryUrls = JSON.stringify(
+      Array.isArray(body.galleryUrls) ? body.galleryUrls : []
+    );
+  }
   if (body.calories !== undefined) data.calories = parseInt(body.calories) || 0;
   if (body.reviewRating !== undefined) data.reviewRating = parseInt(body.reviewRating) || 5;
   if (body.sortOrder !== undefined) data.sortOrder = parseInt(body.sortOrder) || 0;

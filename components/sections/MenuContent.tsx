@@ -18,6 +18,16 @@ function parseJsonSafe(str: string): string[] {
   try { return JSON.parse(str); } catch { return []; }
 }
 
+function parseGalleryUrls(raw: unknown): string[] {
+  if (typeof raw !== "string") return [];
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v) ? v.filter((u): u is string => typeof u === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function MenuContent() {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -50,6 +60,7 @@ export function MenuContent() {
             isVegetarian: Boolean(p.isVegetarian),
             imagePlaceholder: (p.imagePlaceholder as string) || "#C9A07A",
             imageUrl: (p.imageUrl as string) || null,
+            galleryUrls: parseGalleryUrls(p.galleryUrls),
             review: {
               text: (p.reviewText as string) || "",
               author: (p.reviewAuthor as string) || "",

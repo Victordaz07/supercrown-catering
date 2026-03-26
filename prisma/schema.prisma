@@ -124,6 +124,7 @@ model Product {
   isAvailable      Boolean  @default(true)
   imagePlaceholder String   @default("#C9A07A")
   imageUrl         String?
+  galleryUrls      String   @default("[]") // JSON array of extra image URLs for gallery
   sortOrder        Int      @default(0)
   reviewText       String?
   reviewAuthor     String?

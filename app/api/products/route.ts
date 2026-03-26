@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       isVegetarian: Boolean(isVegetarian),
       imagePlaceholder: imagePlaceholder || "#C9A07A",
       imageUrl: imageUrl || null,
+      galleryUrls: JSON.stringify(Array.isArray(body.galleryUrls) ? body.galleryUrls : []),
       sortOrder: (maxSort._max.sortOrder || 0) + 1,
       reviewText: reviewText || null,
       reviewAuthor: reviewAuthor || null,
